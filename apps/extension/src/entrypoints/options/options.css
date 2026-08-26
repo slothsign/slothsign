@@ -1,0 +1,50 @@
+.view-main {
+  view-transition-name: sloth-main;
+}
+
+.view-settings {
+  view-transition-name: sloth-settings;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-old(sloth-main),
+::view-transition-new(sloth-main) {
+  animation: none;
+}
+
+::view-transition-group(sloth-main) {
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  /* Must be set in the view-transition */
+  z-index: 10;
+}
+
+::view-transition-new(sloth-settings) {
+  animation: slide-in-right 150ms linear forwards;
+}
+
+::view-transition-old(sloth-settings) {
+  animation: slide-out-right 150ms linear forwards;
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-out-right {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
