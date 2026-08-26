@@ -1,0 +1,26 @@
+{
+  "name": "@slothsign/cli",
+  "version": "0.1.0",
+  "private": true,
+  "bin": {
+    "sloth": "./src/index.ts"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "build": "bun run scripts/build.ts",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@slothsign/chain-evm": "workspace:*",
+    "@slothsign/chain-solana": "workspace:*",
+    "@slothsign/core": "workspace:*",
+    "@slothsign/keystore": "workspace:*",
+    "commander": "^15.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.0",
+    "typescript": "6.0.3"
+  }
+}

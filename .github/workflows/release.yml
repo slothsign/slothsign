@@ -1,0 +1,38 @@
+name: Release CLI
+
+on:
+  push:
+    tags:
+      - "cli-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build CLI binaries
+        run: cd apps/cli && bun run build
+
+      - name: Create Latest Release
+        run: |
+          VERSION=$(cat apps/cli/bin/version.txt)
+          if gh release view cli-latest --repo ${{ github.repository }} &>/dev/null; then
+            gh release delete cli-latest --yes --repo ${{ github.repository }}
+          fi
+          gh release create cli-latest --repo ${{ github.repository }} \
+            --target ${{ github.sha }} \
+            --title "sloth $VERSION" \
+            apps/cli/bin/*
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
