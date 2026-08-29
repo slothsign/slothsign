@@ -1,20 +1,13 @@
 import { statSync, existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { writeFile, unlink } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { z } from "zod";
 import { derivePrivateKey, deriveSolanaPrivateKey, isValidMnemonic } from "@slothsign/keystore";
 import { addressFromPrivateKey, type PrivateKey } from "@slothsign/chain-evm";
 import { keypairFromMnemonic, keypairFromSecret, isValidSecretKey } from "@slothsign/chain-solana";
-import {
-  decryptWallets,
-  encryptWallets,
-  ensureIdentity,
-  hasWallets,
-  cachePath,
-  walletsPath,
-} from "./keystore.ts";
+import { getBackend, cachePath } from "./keystore/index.ts";
 
 const DIR = join(homedir(), ".sloth");
 const DEFAULT_PATHS = ["m/44'/60'/0'/0/0", "m/44'/501'/0'/0'"];
@@ -188,7 +181,7 @@ export function parseWalletsFile(raw: string): WalletsFile {
  * Read, decrypt and parse the wallets file.
  */
 export function readWallets(): WalletsFile {
-  return parseWalletsFile(decryptWallets());
+  return parseWalletsFile(getBackend().decryptWallets());
 }
 
 /**
@@ -205,7 +198,7 @@ export function rebuildCache(): void {
     }
     seen.set(norm, keyId);
   }
-  mkdirSync(DIR, { recursive: true });
+  mkdirSync(dirname(cachePath()), { recursive: true });
   writeFileSync(
     cachePath(),
     JSON.stringify({ version: 1, addresses: Object.fromEntries(seen) }, null, 2) + "\n",
@@ -216,16 +209,16 @@ export function rebuildCache(): void {
  * Rebuild the cache if the wallets file is newer than the cache.
  */
 export function ensureCacheFresh(): void {
-  if (!existsSync(walletsPath())) {
-    throw new Error(`sloth: wallets file not found at ${walletsPath()}`);
+  const lastModified = getBackend().lastModified();
+  if (lastModified === null) {
+    throw new Error(`sloth: no wallet store found in ${getBackend().describe()}`);
   }
   if (!existsSync(cachePath())) {
     rebuildCache();
     return;
   }
-  const wm = statSync(walletsPath()).mtimeMs;
   const cm = statSync(cachePath()).mtimeMs;
-  if (wm > cm) rebuildCache();
+  if (lastModified > cm) rebuildCache();
 }
 
 /**
@@ -268,8 +261,8 @@ const TEMPLATE = `{
  * Open the wallets file in $EDITOR for editing.
  */
 export async function editWallets(): Promise<WalletsFile> {
-  ensureIdentity();
-  const plaintext = hasWallets() ? decryptWallets() : TEMPLATE;
+  getBackend().ensureIdentity();
+  const plaintext = getBackend().hasWallets() ? getBackend().decryptWallets() : TEMPLATE;
   const tmp = join(DIR, `.wallets-${process.pid}.json`);
   try {
     await writeFile(tmp, plaintext, { mode: 0o600 });
@@ -280,7 +273,7 @@ export async function editWallets(): Promise<WalletsFile> {
     }
     const edited = readFileSync(tmp, "utf8");
     const file = parseWalletsFile(edited);
-    encryptWallets(JSON.stringify(file, null, 2) + "\n");
+    getBackend().encryptWallets(JSON.stringify(file, null, 2) + "\n");
     rebuildCache();
     return file;
   } finally {
@@ -294,9 +287,9 @@ export async function editWallets(): Promise<WalletsFile> {
  * Read and validate a wallets file from stdin.
  */
 export function editWalletsFromStdin(text: string): WalletsFile {
-  ensureIdentity();
+  getBackend().ensureIdentity();
   const file = parseWalletsFile(text);
-  encryptWallets(JSON.stringify(file, null, 2) + "\n");
+  getBackend().encryptWallets(JSON.stringify(file, null, 2) + "\n");
   rebuildCache();
   return file;
 }

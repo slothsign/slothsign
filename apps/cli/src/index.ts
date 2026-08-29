@@ -27,6 +27,7 @@ import { createInterface } from "readline/promises";
 import { stdin, stdout } from "process";
 import { dirname, join } from "node:path";
 import { chmod, rename } from "node:fs/promises";
+import { getBackend, supportedModes } from "./keystore/index.ts";
 import {
   editWallets,
   editWalletsFromStdin,
@@ -40,10 +41,13 @@ import {
 const VERSION_INFO = process.env.SLOTH_VERSION_INFO ?? "dev";
 const REPO = process.env.SLOTH_UPDATE_REPO ?? "";
 
+const supported = supportedModes();
+
 const ENV_TEXT = `Environment:
+  SLOTH_KEYSTORE   storage backend: ${supported.map((b, i) => (i ? b : `${b} (default)`)).join(", ")}
+  SLOTH_CACHE      address cache (default ~/.sloth/addresses.json)
   SLOTH_IDENTITY   age identity file  (default ~/.sloth/identity.txt)
   SLOTH_WALLETS    encrypted wallet registry (default ~/.sloth/wallets.age)
-  SLOTH_CACHE      address cache (default ~/.sloth/addresses.json)
   SLOTH_RECIPIENT  age recipient to encrypt to (default: identity's public key)`;
 
 function parseRequest(input: string): SignerRequest {
@@ -219,13 +223,13 @@ function commandWalletIndex(): void {
 async function commandWalletEdit(): Promise<void> {
   if (process.stdin.isTTY) {
     const wallets = await editWallets();
-    console.log(`Wrote ${wallets.wallets.length} wallet(s) to ~/.sloth/wallets.age`);
+    console.log(`Wrote ${wallets.wallets.length} wallet(s) to ${getBackend().describe()}`);
     console.log("");
     commandWalletList();
   } else {
     const text = await Bun.stdin.text();
     const wallets = editWalletsFromStdin(text);
-    console.log(`Wrote ${wallets.wallets.length} wallet(s) to ~/.sloth/wallets.age`);
+    console.log(`Wrote ${wallets.wallets.length} wallet(s) to ${getBackend().describe()}`);
   }
 }
 

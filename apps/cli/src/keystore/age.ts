@@ -1,20 +1,17 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
+import type { KeystoreBackend } from "./types.ts";
 
 const DIR = join(homedir(), ".sloth");
 
-export function identityPath(): string {
+function identityPath(): string {
   return process.env.SLOTH_IDENTITY ?? join(DIR, "identity.txt");
 }
 
-export function walletsPath(): string {
+function walletsPath(): string {
   return process.env.SLOTH_WALLETS ?? join(DIR, "wallets.age");
-}
-
-export function cachePath(): string {
-  return process.env.SLOTH_CACHE ?? join(DIR, "addresses.json");
 }
 
 function requireBinary(name: "age" | "age-keygen"): void {
@@ -32,14 +29,6 @@ function recipient(): string {
   return match[1];
 }
 
-export function hasIdentity(): boolean {
-  return existsSync(identityPath());
-}
-
-export function hasWallets(): boolean {
-  return existsSync(walletsPath());
-}
-
 function readIdentity(): string {
   const path = identityPath();
   if (!existsSync(path)) {
@@ -48,10 +37,7 @@ function readIdentity(): string {
   return readFileSync(path, "utf8");
 }
 
-/**
- * Generate the age identity file (age-keygen) if it does not exist.
- */
-export function ensureIdentity(): void {
+function generateIdentity(): void {
   const path = identityPath();
   if (existsSync(path)) return;
   mkdirSync(DIR, { recursive: true });
@@ -62,10 +48,7 @@ export function ensureIdentity(): void {
   }
 }
 
-/**
- * Encrypt plaintext to wallets.age for the identity's public key.
- */
-export function encryptWallets(plaintext: string): void {
+function encryptWallets(plaintext: string): void {
   const path = walletsPath();
   mkdirSync(DIR, { recursive: true });
   requireBinary("age");
@@ -78,10 +61,7 @@ export function encryptWallets(plaintext: string): void {
   }
 }
 
-/**
- * Decrypt wallets.age and return the plaintext.
- */
-export function decryptWallets(): string {
+function decryptWallets(): string {
   const path = walletsPath();
   if (!existsSync(path)) {
     throw new Error(`sloth: wallets file not found at ${path}`);
@@ -94,9 +74,15 @@ export function decryptWallets(): string {
   return result.stdout;
 }
 
-export function publicKey(): string {
-  const identity = readIdentity();
-  const match = /# public key: (\S+)/.exec(identity);
-  if (!match?.[1]) throw new Error("sloth: no age public key in identity file");
-  return match[1];
-}
+export const ageBackend: KeystoreBackend = {
+  mode: "age",
+  hasWallets: () => existsSync(walletsPath()),
+  encryptWallets,
+  decryptWallets,
+  ensureIdentity: generateIdentity,
+  lastModified: () => {
+    if (!existsSync(walletsPath())) return null;
+    return statSync(walletsPath()).mtimeMs;
+  },
+  describe: () => walletsPath(),
+};
