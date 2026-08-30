@@ -25,9 +25,8 @@ import { derivePrivateKey } from "@slothsign/keystore";
 import { Command } from "commander";
 import { createInterface } from "readline/promises";
 import { stdin, stdout } from "process";
-import { dirname, join } from "node:path";
-import { chmod, rename } from "node:fs/promises";
 import { getBackend, supportedModes } from "./keystore/index.ts";
+import { runUpdate } from "./update.ts";
 import {
   editWallets,
   editWalletsFromStdin,
@@ -244,29 +243,7 @@ async function readStdin(): Promise<string> {
 }
 
 async function commandUpdate(): Promise<void> {
-  const asset = `sloth-${process.platform}-${process.arch}`;
-  const versionRes = await fetch(
-    `https://github.com/${REPO}/releases/download/cli-latest/version.txt`,
-  );
-  if (!versionRes.ok) {
-    throw new Error(`Failed to fetch version info (${versionRes.status})`);
-  }
-  const remoteVersion = (await versionRes.text()).trim();
-  if (remoteVersion === VERSION_INFO) {
-    console.log("already up to date");
-    return;
-  }
-  console.log(`updating from ${VERSION_INFO} to ${remoteVersion}`);
-  const res = await fetch(`https://github.com/${REPO}/releases/download/cli-latest/${asset}`);
-  if (!res.ok) {
-    throw new Error(`Download failed (${res.status}) for ${asset}`);
-  }
-  const bytes = new Uint8Array(await res.arrayBuffer());
-  const target = process.execPath;
-  const tmp = join(dirname(target), `${asset}.tmp-${process.pid}`);
-  await Bun.write(tmp, bytes);
-  await chmod(tmp, 0o755);
-  await rename(tmp, target);
+  await runUpdate({ repo: REPO, currentVersion: VERSION_INFO, baseName: "sloth" });
 }
 
 function buildProgram(): Command {

@@ -36,7 +36,15 @@ It isolates the one step that needs the hardest security boundary: **signing**. 
 curl -fsSL https://raw.githubusercontent.com/slothsign/slothsign/main/scripts/install-cli.sh | sh
 ```
 
-The install script picks the right binary for your OS/arch, marks it executable, and (on macOS) clears the Gatekeeper quarantine. Once installed, keep it current with:
+The install script picks the right binary for your OS/arch, verifies its SHA-256 checksum against `version.txt`, decompresses it when needed, and (on macOS) clears the Gatekeeper quarantine.
+
+Or install it as a mise tool:
+
+```sh
+mise use github:slothsign/slothsign
+```
+
+Once installed, keep it current with:
 
 ```sh
 sloth update

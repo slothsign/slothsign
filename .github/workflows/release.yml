@@ -26,14 +26,14 @@ jobs:
 
       - name: Create Latest Release
         run: |
-          VERSION=$(cat apps/cli/bin/version.txt)
-          TAG=cli-latest
+          VERSION="$(head -n1 apps/cli/bin/version.txt)"
+          TAG="v${VERSION%-*}"
           if gh release view $TAG --repo ${{ github.repository }} &>/dev/null; then
             gh release delete $TAG --yes --repo ${{ github.repository }}
           fi
           gh release create $TAG --repo ${{ github.repository }} \
             --target ${{ github.sha }} \
             --title "sloth $VERSION" \
-            apps/cli/bin/*
+            apps/cli/bin/*.gz apps/cli/bin/version.txt
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
