@@ -26,6 +26,8 @@ import {
   isOriginConnected,
   markOriginConnected,
   normalizeWallet,
+  parseActiveWallets,
+  parseStoredWallets,
   readActiveWallets,
   readConnectedOrigins,
   readEvmChainId,
@@ -223,14 +225,24 @@ function readableError(error: unknown): string {
 
 /**
  * Push the current accounts for a chain to every tab whose origin is connected,
- * mirroring the background source of truth. Currently Solana only (the
- * wallet-standard snapshot has no query API); EVM queries live via eth_accounts.
+ * but only when the accounts actually changed. The before/after states come
+ * from the storage change event (which carries persisted oldValue/newValue), so
+ * the diff is correct across service-worker restarts with no extra state.
  */
-async function broadcastAccountsChanged(chain: "ethereum" | "solana"): Promise<void> {
+async function broadcastAccountsChanged(
+  chain: "ethereum" | "solana",
+  changes: Record<string, { oldValue?: unknown; newValue?: unknown }>,
+): Promise<void> {
   const wallets = await readStoredWallets();
   const active = await readActiveWallets();
-  const origins = await readConnectedOrigins();
   const accounts = accountsFromWallets(wallets, active, chain);
+  const before = accountsFromWallets(
+    changes.wallets ? parseStoredWallets(changes.wallets.oldValue ?? []) : wallets,
+    changes.activeWallets ? parseActiveWallets(changes.activeWallets.oldValue ?? {}) : active,
+    chain,
+  );
+  if (sameAccounts(before, accounts)) return;
+  const origins = await readConnectedOrigins();
   const tabs = await browser.tabs.query({});
   for (const tab of tabs) {
     if (tab.id == null || !tab.url) continue;
@@ -242,13 +254,17 @@ async function broadcastAccountsChanged(chain: "ethereum" | "solana"): Promise<v
   }
 }
 
+function sameAccounts(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
 browser.storage.onChanged.addListener(async (changes, area) => {
   if (area !== "local") return;
-  const relevant = ["activeWallets", "connectedOrigins", "storedWallets"].some(
-    (key) => changes[key],
-  );
-  if (!relevant) return;
-  await broadcastAccountsChanged("solana");
+  if (!changes.wallets && !changes.activeWallets) return;
+  await Promise.all([
+    broadcastAccountsChanged("ethereum", changes),
+    broadcastAccountsChanged("solana", changes),
+  ]);
 });
 
 browser.tabs.onRemoved.addListener(async (tabId) => {

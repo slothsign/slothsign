@@ -122,7 +122,7 @@ export function announceEvmProvider(): void {
   announce();
 }
 
-export function handleNotification({ type, chainId }: WindowNotification): void {
+export function handleNotification({ type, chainId, accounts }: WindowNotification): void {
   switch (type) {
     case "chainChanged":
       emitEvmEvent("chainChanged", chainId);
@@ -131,6 +131,7 @@ export function handleNotification({ type, chainId }: WindowNotification): void 
       emitEvmEvent("disconnect", [{ code: 4900, message: "Disconnected" }]);
       break;
     case "accountsChanged":
+      emitEvmEvent("accountsChanged", accounts);
       break;
   }
 }
