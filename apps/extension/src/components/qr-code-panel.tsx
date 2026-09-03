@@ -4,7 +4,7 @@ import QRCode from "qrcode";
 const FRAME_MS = 250;
 const RENDER = { width: 220, margin: 2, errorCorrectionLevel: "M" as const };
 
-export function QrCodePanel({ parts }: { parts?: string[] }) {
+export function QrCodePanel({ parts, caption }: { parts?: string[]; caption?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [index, setIndex] = useState(0);
   const [error, setError] = useState<string>();
@@ -56,6 +56,7 @@ export function QrCodePanel({ parts }: { parts?: string[] }) {
           <canvas ref={canvasRef} className="rounded-md border border-border bg-white p-2" />
         )}
       </div>
+      {caption ? <p className="text-center text-xs text-muted-foreground">{caption}</p> : null}
       {parts.length > 1 ? (
         <p className="text-center text-xs text-muted-foreground">
           Frame {index + 1} of {parts.length}

@@ -26,6 +26,14 @@ export const SIGNER_MODE_DESCRIPTIONS: Record<SignerMode, string> = {
   "address-qr": "Sign via QR located by address — no path or xpub required.",
 };
 
+/** Which scanner app can read a signer's QR, if it has one. */
+export const SIGNER_MODE_SCANNER_HINT: Record<SignerMode, string | null> = {
+  "watch-only": null,
+  "keystone-qr": "Scan with AirGap Vault or Keystone",
+  trezor: null,
+  "address-qr": "Scan with SlothSigner",
+};
+
 export const CHAIN_LABELS: Record<Chain, string> = {
   ethereum: "EVM",
   solana: "Solana",
