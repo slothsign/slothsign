@@ -46,7 +46,6 @@ import {
 } from "../../lib/config.ts";
 import { chainIdToHex, getEvmChain, getEvmRpcUrl } from "../../lib/evmChains.ts";
 import { extractOrigin } from "../../lib/origin.ts";
-import { clearSignerWindow, getSignerWindow } from "../../lib/signerWindows.ts";
 import {
   awaitResolution,
   confirmConnectRequest,
@@ -56,8 +55,12 @@ import {
   listPendingRequests,
   rejectRequest,
   resolveRequest,
+  showNextRequest,
 } from "./requestManager.ts";
 import { signEvmWithTrezor, signSolanaWithTrezor, getTrezorXpub } from "./trezor.ts";
+import { log } from "../../lib/log.ts";
+
+log?.debug("background service worker started");
 
 function accountsFromWallets(
   wallets: WalletConfig[],
@@ -140,13 +143,13 @@ async function finalizeSignature(request: SignPendingRequest, result: unknown): 
   const { chainId, payload } = request.signerRequest;
   const chain = getEvmChain(chainId);
   if (!chain) {
-    console.error("[SlothSign] finalizeSignature: no chain for", chainId);
+    log?.error("finalizeSignature: no chain for", chainId);
     throw new Error("SlothSign: no RPC endpoint for this chain");
   }
   const rpcUrls = await readRpcUrls();
   const url = getEvmRpcUrl(chain, rpcUrls);
   if (!url) {
-    console.error("[SlothSign] finalizeSignature: no RPC URL for", chain.name);
+    log?.error("finalizeSignature: no RPC URL for", chain.name);
     throw new Error("SlothSign: no RPC endpoint for this chain");
   }
 
@@ -193,7 +196,7 @@ async function prepareEvmTxParams(params: unknown[], chainId: string): Promise<u
       }
     }
   } catch (e) {
-    console.error("[SlothSign] prepareEvmTxParams failed:", e);
+    log?.error("prepareEvmTxParams failed:", e);
     return params;
   }
   return [next, ...params.slice(1)];
@@ -271,14 +274,11 @@ browser.storage.onChanged.addListener(async (changes, area) => {
   ]);
 });
 
-browser.tabs.onRemoved.addListener(async (tabId) => {
-  const entry = await getSignerWindow();
-  if (!entry || entry.tabId !== tabId) return;
-  await clearSignerWindow();
-  const request = await getRequest(entry.requestId);
-  if (request && request.status === "pending") {
-    rejectRequest(entry.requestId, "SlothSign: request cancelled");
-  }
+// Backup drain: the signer page reports its own closing (signer-closed) with
+// its request id; if that notice is ever lost, any tab close re-checks the
+// live window state so the queue can never wedge on a phantom entry.
+browser.tabs.onRemoved.addListener(() => {
+  void showNextRequest();
 });
 
 browser.runtime.onMessage.addListener(
@@ -297,13 +297,16 @@ browser.runtime.onMessage.addListener(
 
       case "connect-request": {
         const origin = extractOrigin(sender.url);
+        log?.debug(`connect-request chain=${msg.chain} origin=${origin}`);
         const origins = await readConnectedOrigins();
         const wallets = await readStoredWallets();
         const active = resolveActiveWallets(wallets, await readActiveWallets());
         if (isOriginConnected(origins, msg.chain, origin)) {
+          log?.debug(`${origin} already connected, returning accounts`);
           return accountsFromWallets(wallets, active, msg.chain);
         }
         if (!active[msg.chain]) {
+          log?.warn(`connect-request: no active ${msg.chain} wallet`);
           throw new Error(`SlothSign: no active ${msg.chain} wallet`);
         }
         const accounts = accountsFromWallets(wallets, active, msg.chain);
@@ -312,12 +315,14 @@ browser.runtime.onMessage.addListener(
           originUrl: sender.url,
           accounts,
         });
+        log?.debug(`connect request ${request.id} pending, awaiting approval`);
         return awaitResolution(request.id);
       }
 
       case "confirm-connect": {
         try {
           await confirmConnectRequest(msg.id);
+          log?.debug(`connect request ${msg.id} approved`);
           return { ok: true };
         } catch (error) {
           return { ok: false, error: String(error) };
@@ -401,16 +406,16 @@ browser.runtime.onMessage.addListener(
             }),
           });
           if (!res.ok) {
-            console.error(`[SlothSign] RPC ${msg.method} failed: HTTP ${res.status}`);
+            log?.error(`RPC ${msg.method} failed: HTTP ${res.status}`);
             return { ok: false, code: -32603, message: `RPC request failed: HTTP ${res.status}` };
           }
           const parsed = JsonRpcResponseSchema.safeParse(await res.json());
           if (!parsed.success) {
-            console.error(`[SlothSign] RPC ${msg.method}: invalid response`);
+            log?.error(`RPC ${msg.method}: invalid response`);
             return { ok: false, code: -32603, message: "Invalid RPC response" };
           }
           if (parsed.data.error) {
-            console.error(`[SlothSign] RPC ${msg.method} error:`, parsed.data.error);
+            log?.error(`RPC ${msg.method} error:`, parsed.data.error);
             return {
               ok: false,
               code: parsed.data.error.code,
@@ -420,7 +425,7 @@ browser.runtime.onMessage.addListener(
           }
           return { ok: true, result: parsed.data.result };
         } catch (error) {
-          console.error(`[SlothSign] RPC ${msg.method} threw:`, error);
+          log?.error(`RPC ${msg.method} threw:`, error);
           return {
             ok: false,
             code: -32603,
@@ -466,7 +471,7 @@ browser.runtime.onMessage.addListener(
           resolveRequest(id, result);
           return { ok: true };
         } catch (error) {
-          console.error("[SlothSign] submit-signature failed:", error);
+          log?.error("submit-signature failed:", error);
           rejectRequest(id, readableError(error));
           return { ok: false, error: readableError(error) };
         }
@@ -522,7 +527,7 @@ browser.runtime.onMessage.addListener(
             resolveRequest(id, result);
             return { ok: true };
           } catch (error) {
-            console.error("[SlothSign] trezor-sign finalize failed:", error);
+            log?.error("trezor-sign finalize failed:", error);
             rejectRequest(id, readableError(error));
             return { ok: false, error: readableError(error) };
           }
@@ -564,6 +569,17 @@ browser.runtime.onMessage.addListener(
         const request = await getRequest(msg.id);
         if (!request || request.status !== "pending") return { ok: false };
         rejectRequest(msg.id, "SlothSign: request cancelled");
+        return { ok: true };
+      }
+
+      case "signer-closed": {
+        const request = await getRequest(msg.id);
+        if (request && request.status === "pending") {
+          log?.debug(`signer window closed, cancelling request ${msg.id}`);
+          rejectRequest(msg.id, "SlothSign: request cancelled");
+        } else {
+          void showNextRequest();
+        }
         return { ok: true };
       }
 

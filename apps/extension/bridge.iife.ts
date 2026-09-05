@@ -12,11 +12,13 @@ import {
   SwitchChainResultSchema,
   type WindowResponse,
 } from "./src/lib/messages.ts";
+import { log } from "./src/lib/log.ts";
 
 /**
  * ISOLATED world bridge: relays provider messages from the page (MAIN world)
  * to the background via runtime messaging, then posts the response back.
  */
+log?.debug("bridge content script loaded");
 browser.runtime.onMessage.addListener((msg: unknown) => {
   const parsed = RuntimeNotificationSchema.safeParse(msg);
   if (!parsed.success) return;
@@ -51,6 +53,7 @@ window.addEventListener("message", async (event) => {
 
   try {
     if (data.type === "accounts" || data.type === "connect") {
+      log?.debug(`bridge ${data.type} (${data.chain})`);
       const accounts = await browser.runtime.sendMessage({
         type: data.type === "connect" ? "connect-request" : "accounts-request",
         chain: data.chain,
@@ -144,6 +147,7 @@ window.addEventListener("message", async (event) => {
     });
     respond(data.id, { ok: true, result });
   } catch (error) {
+    log?.error(`bridge ${data.type} (${data.chain}) failed:`, error);
     respond(data.id, {
       ok: false,
       error: { code: -32603, message: error instanceof Error ? error.message : String(error) },

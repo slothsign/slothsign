@@ -103,6 +103,7 @@ export const RuntimeMessageSchema = z.discriminatedUnion("type", [
     error: z.string().optional(),
   }),
   z.object({ type: z.literal("cancel-request"), id: z.string() }),
+  z.object({ type: z.literal("signer-closed"), id: z.string() }),
   z.object({ type: z.literal("get-pending-requests") }),
   z.object({ type: z.literal("confirm-connect"), id: z.string() }),
   z.object({ type: z.literal("get-wallets") }),

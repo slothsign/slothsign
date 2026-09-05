@@ -2,8 +2,10 @@ import "@/style.css";
 import React, { useEffect, useRef } from "react";
 import ReactDOM from "react-dom/client";
 import { useShallow } from "zustand/react/shallow";
+import browser from "webextension-polyfill";
 import { RequestDetail } from "./request-detail.tsx";
 import { useSignerStore } from "./signer-store.ts";
+import { notifySignerClosed } from "@/lib/actions.ts";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import slothSvg from "../../assets/sloth.svg";
 
@@ -20,10 +22,47 @@ function App() {
   const initialId = params.get("id") ?? undefined;
   const targetIdRef = useRef<string | undefined>(initialId);
   const closingRef = useRef(false);
+  const duplicateRef = useRef(false);
+
+  // Single live signer window: the background closes any second concurrent
+  // connection. A duplicate closes itself without reporting (its request was
+  // never shown and stays queued).
+  useEffect(() => {
+    const port = browser.runtime.connect({ name: "signer" });
+    const onMessage = (msg: unknown) => {
+      if ((msg as { type?: unknown })?.type === "duplicate-signer") {
+        duplicateRef.current = true;
+        window.close();
+      }
+    };
+    port.onMessage.addListener(onMessage);
+    try {
+      port.postMessage({ type: "signer-hello", id: initialId });
+    } catch {
+      // Background unreachable; page still works via request messages.
+    }
+    return () => {
+      port.onMessage.removeListener(onMessage);
+      port.disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     void refresh().catch(() => undefined);
   }, [refresh]);
+
+  // The page knows its own request id (unlike a background tab-close
+  // observer), so it reports closing directly — no cached mapping needed.
+  useEffect(() => {
+    const onHide = () => {
+      if (duplicateRef.current) return;
+      const id = targetIdRef.current;
+      if (id) void notifySignerClosed(id).catch(() => undefined);
+    };
+    window.addEventListener("pagehide", onHide);
+    return () => window.removeEventListener("pagehide", onHide);
+  }, []);
 
   useEffect(() => {
     if (!loaded || targetIdRef.current) return;

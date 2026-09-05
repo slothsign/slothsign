@@ -8,6 +8,14 @@ import { nodePolyfills } from "vite-plugin-node-polyfills";
 import manifest from "./manifest.config.ts";
 
 export default defineConfig({
+  // Build-time log gate (see src/lib/log.ts): on for local dev builds, off
+  // for production (zip) builds, overridable with SLOTHSIGN_DEBUG=0|1.
+  define: {
+    __SLOTHSIGN_DEBUG__: JSON.stringify(
+      process.env.SLOTHSIGN_DEBUG === "1" ||
+        (process.env.SLOTHSIGN_DEBUG !== "0" && process.env.SLOTHSIGN_BUILD_TYPE !== "zip"),
+    ),
+  },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),

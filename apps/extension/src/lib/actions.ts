@@ -52,6 +52,11 @@ export function cancelRequest(id: string): Promise<{ ok: boolean }> {
   return send({ type: "cancel-request", id });
 }
 
+/** Fire-and-forget: the signer page reports its own closing (it knows its id). */
+export function notifySignerClosed(id: string): Promise<unknown> {
+  return send({ type: "signer-closed", id });
+}
+
 export function getActiveWallets(): Promise<ActiveWallets> {
   return send<ActiveWallets>({ type: "get-active-wallets" });
 }

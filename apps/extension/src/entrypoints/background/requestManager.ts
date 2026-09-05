@@ -1,8 +1,9 @@
 import { encodeRequest, type SignerRequest } from "@slothsign/core";
+import browser from "webextension-polyfill";
 import { markOriginConnected, readStoredWallets, walletForAddress } from "../../lib/config.ts";
 import { extractOrigin, isAllowedPage } from "../../lib/origin.ts";
 import { openRequestWindow } from "../../lib/popup.ts";
-import { clearSignerWindowForRequest, getSignerWindow } from "../../lib/signerWindows.ts";
+import { log } from "../../lib/log.ts";
 import {
   deleteRequest,
   getRequest,
@@ -15,6 +16,86 @@ import {
   type PendingRequest,
 } from "../../lib/requestStore.ts";
 import { buildSignerRequest, resolveAddress } from "./signers.ts";
+import {
+  clearSignerWindow,
+  clearSignerWindowForRequest,
+  getSignerWindow,
+} from "../../lib/signerWindows.ts";
+
+/**
+ * Whether a signer popup is currently open. The stored entry is only ever an
+ * id hint: liveness is verified on every check via windows.get (needs no
+ * special permission, unlike tab URLs), so a dead entry can never wedge or
+ * duplicate the queue.
+ */
+async function liveSignerWindowExists(): Promise<boolean> {
+  const entry = await getSignerWindow();
+  if (!entry) return false;
+  try {
+    await browser.windows.get(entry.windowId);
+    return true;
+  } catch {
+    log?.warn("clearing stale signer window entry");
+    await clearSignerWindow();
+    return false;
+  }
+}
+
+interface ActiveSigner {
+  port: browser.Runtime.Port;
+  requestId: string | undefined;
+}
+
+/**
+ * The currently connected signer page, if any. Ports give exact liveness
+ * within a service-worker lifetime: disconnects are observed reliably, so a
+ * second concurrent connection is always a genuine duplicate.
+ */
+let activeSigner: ActiveSigner | null = null;
+
+browser.runtime.onConnect.addListener((port) => {
+  if (port.name !== "signer") return;
+  port.onMessage.addListener((raw: unknown) => {
+    void handleSignerHello(port, raw);
+  });
+  port.onDisconnect.addListener(() => {
+    if (activeSigner?.port === port) {
+      log?.debug("signer window disconnected");
+      activeSigner = null;
+      void showNextRequest();
+    }
+  });
+});
+
+async function handleSignerHello(port: browser.Runtime.Port, raw: unknown): Promise<void> {
+  const data = raw as { type?: unknown; id?: unknown };
+  if (data?.type !== "signer-hello") return;
+  const id = typeof data.id === "string" ? data.id : undefined;
+  const current = activeSigner;
+  if (current && current.port !== port) {
+    if (current.requestId !== undefined && current.requestId === id) {
+      activeSigner = { port, requestId: id }; // same request, reloaded page
+      return;
+    }
+    if (id !== undefined && current.requestId !== undefined) {
+      const currentRequest = await getRequest(current.requestId);
+      if (!currentRequest || currentRequest.status !== "pending") {
+        // Previous window is finishing its close; hand over to the newcomer.
+        log?.debug("signer window handed over");
+        activeSigner = { port, requestId: id };
+        return;
+      }
+    }
+    log?.warn("duplicate signer window, closing it");
+    try {
+      port.postMessage({ type: "duplicate-signer" });
+    } catch {
+      // Page already gone.
+    }
+    return;
+  }
+  if (!current) activeSigner = { port, requestId: id };
+}
 
 interface Resolver {
   resolve: (result: unknown) => void;
@@ -32,10 +113,28 @@ let showLock: Promise<void> = Promise.resolve();
 
 export function showNextRequest(): Promise<void> {
   const run = showLock.then(async () => {
-    if (await getSignerWindow()) return;
-    const requests = await listPendingRequests();
-    const next = requests[0];
+    if (activeSigner) {
+      log?.debug("signer window already connected, new request waits");
+      return;
+    }
+    if (await liveSignerWindowExists()) {
+      log?.debug("signer window already open, new request waits");
+      return;
+    }
+    // Never surface dead backlog as popups: expired requests are rejected
+    // instead of shown, so cancelling through a stuck queue terminates.
+    const now = Date.now();
+    const fresh = (await listPendingRequests()).filter((r) => {
+      if (r.expiresAt <= now) {
+        log?.debug(`dropping expired request ${r.id}`);
+        rejectRequest(r.id, "SlothSign: request timed out");
+        return false;
+      }
+      return true;
+    });
+    const next = fresh[0];
     if (!next) return;
+    log?.debug(`opening signer window for request ${next.id}`);
     await openRequestWindow(next.id);
   });
   showLock = run.catch(() => undefined);
@@ -128,6 +227,7 @@ export async function createConnectRequest(input: {
     expiresAt: now + REQUEST_TTL_MS,
   };
   await storeRequest(request);
+  log?.debug(`connect request ${request.id} stored for ${origin}`);
   void showNextRequest();
   scheduleTimeout(request.id);
   return request;
@@ -181,6 +281,7 @@ function scheduleTimeout(id: string): void {
   timers.set(
     id,
     setTimeout(() => {
+      log?.warn(`request ${id} timed out`);
       rejectRequest(id, "SlothSign: request timed out");
     }, REQUEST_TTL_MS),
   );

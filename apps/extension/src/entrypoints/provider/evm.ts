@@ -1,4 +1,5 @@
 import { ICON, bridgeRequest, type WindowNotification } from "./shared";
+import { log } from "@/lib/log";
 
 type Listener = (...args: unknown[]) => void;
 
@@ -21,6 +22,7 @@ function createEvmProvider(): Eip1193Provider {
     async request({ method, params = [] }) {
       switch (method) {
         case "eth_requestAccounts":
+          log?.debug("eth_requestAccounts");
           return bridgeRequest<string[]>("connect", "ethereum");
         case "eth_accounts": {
           const accounts = await bridgeRequest<string[]>("accounts", "ethereum");
