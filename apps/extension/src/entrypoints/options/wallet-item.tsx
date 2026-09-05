@@ -6,9 +6,11 @@ import { CopyButton } from "@/components/ui/copy-button";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
+  defaultPath,
   isSignableWallet,
   SIGNER_MODE_LABELS,
   validateDerivationPath,
+  validateSolanaPath,
   validateXpub,
   type SignerMode,
   type WalletConfig,
@@ -44,9 +46,10 @@ export function WalletItem({
   onUpdateField: (field: "path" | "xpub", value: string) => void;
 }) {
   const isXpubSigner = wallet.signer === "keystone-qr" || wallet.signer === "trezor";
-  const canExpand = wallet.chain === "ethereum" && isXpubSigner;
+  const canExpand = wallet.signer !== "watch-only";
   const validated = wallet.validated;
-  const pathInvalid = validateDerivationPath(wallet.path) !== null;
+  const pathInvalid =
+    (wallet.chain === "solana" ? validateSolanaPath : validateDerivationPath)(wallet.path) !== null;
   const showWarning =
     wallet.chain === "ethereum" &&
     isXpubSigner &&
@@ -56,11 +59,7 @@ export function WalletItem({
     : pathInvalid
       ? "Invalid derivation path — signing will fail"
       : "Address does not match derivation path and xpub";
-  const showPathTag =
-    canExpand &&
-    Boolean(wallet.path) &&
-    !pathInvalid &&
-    (!wallet.xpub || validateXpub(wallet.xpub) === null);
+  const showPathTag = wallet.signer !== "watch-only" && Boolean(wallet.path) && !pathInvalid;
   const [deriveOpen, setDeriveOpen] = useState(false);
   return (
     <div>
@@ -139,7 +138,7 @@ export function WalletItem({
           onOpenDerive={() => setDeriveOpen(true)}
         />
       ) : null}
-      {wallet.xpub ? (
+      {wallet.chain === "ethereum" && wallet.xpub ? (
         <DeriveGroupDialog
           open={deriveOpen}
           onClose={() => setDeriveOpen(false)}
@@ -168,7 +167,10 @@ function XpubSigningDetails({
   onOpenDerive: () => void;
 }) {
   const readOnly = wallet.validated === true;
-  const canDerive = Boolean(wallet.xpub) && validateXpub(wallet.xpub) === null;
+  const showXpub = wallet.chain === "ethereum" && wallet.signer !== "watch-only";
+  const canDerive =
+    wallet.chain === "ethereum" && Boolean(wallet.xpub) && validateXpub(wallet.xpub) === null;
+  const validatePath = wallet.chain === "solana" ? validateSolanaPath : validateDerivationPath;
 
   /** Fetch the parent-level xpub from the device to fill the xpub draft. */
   async function fetchXpub(): Promise<string> {
@@ -192,12 +194,12 @@ function XpubSigningDetails({
         <div className="flex min-w-0 items-center gap-1 self-center">
           <EditableText
             value={wallet.path ?? ""}
-            placeholder="m/44'/60'/0'/0/0"
-            emptyText="m/44'/60'/0'/0/0"
+            placeholder={defaultPath(wallet.chain)}
+            emptyText={defaultPath(wallet.chain)}
             className="min-w-0 truncate font-mono text-xs"
             inputClassName="h-6 w-full px-1.5 font-mono text-xs"
             onSave={(v) => {
-              const message = validateDerivationPath(v);
+              const message = validatePath(v);
               if (message) return message;
               onUpdateField("path", v);
             }}
@@ -217,24 +219,28 @@ function XpubSigningDetails({
             </Button>
           ) : null}
         </div>
-        <span className="py-1 text-xs text-muted-foreground">Extended public key (xpub)</span>
-        <EditableText
-          value={wallet.xpub ?? ""}
-          multiline
-          placeholder="xpub…"
-          emptyText={<span className="text-muted-foreground">(xpub not set)</span>}
-          className="min-w-0 font-mono text-xs self-center"
-          inputClassName="w-full font-mono text-xs"
-          onSave={(v) => onUpdateField("xpub", v)}
-          scan={wallet.signer === "keystone-qr" ? { decode: decodeXpub } : undefined}
-          fetch={
-            wallet.signer === "trezor"
-              ? { fetch: fetchXpub, label: "Fetch xpub from Trezor" }
-              : undefined
-          }
-          wrap
-          readOnly={readOnly}
-        />
+        {showXpub ? (
+          <>
+            <span className="py-1 text-xs text-muted-foreground">Extended public key (xpub)</span>
+            <EditableText
+              value={wallet.xpub ?? ""}
+              multiline
+              placeholder="xpub…"
+              emptyText={<span className="text-muted-foreground">(xpub not set)</span>}
+              className="min-w-0 font-mono text-xs self-center"
+              inputClassName="w-full font-mono text-xs"
+              onSave={(v) => onUpdateField("xpub", v)}
+              scan={wallet.signer === "keystone-qr" ? { decode: decodeXpub } : undefined}
+              fetch={
+                wallet.signer === "trezor"
+                  ? { fetch: fetchXpub, label: "Fetch xpub from Trezor" }
+                  : undefined
+              }
+              wrap
+              readOnly={readOnly}
+            />
+          </>
+        ) : null}
       </div>
     </div>
   );

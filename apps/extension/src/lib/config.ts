@@ -337,10 +337,14 @@ function isValidSolanaAddress(value: string): boolean {
   }
 }
 
-const EVM_PATH_SEGMENT = /^\d+'?$/;
+/** EVM receiving path: `m/44'/60'/account'/change/index`. */
+const EVM_PATH_PATTERN = /^m\/44'\/60'\/\d+'\/\d+\/\d+$/i;
+
+/** Solana account path: `m/44'/501'/account'/change'`. */
+const SOLANA_PATH_PATTERN = /^m\/44'\/501'\/\d+'\/\d+'$/i;
 
 /**
- * Validate an extended public key for a keystone-qr EVM wallet. Returns an
+ * Validate an extended public key for an EVM wallet. Returns an
  * error message when the xpub can't be parsed, or `null` when it's empty or
  * valid.
  */
@@ -356,50 +360,26 @@ export function validateXpub(value: string | undefined): string | null {
 }
 
 /**
- * Validate a derivation path for a keystone-qr EVM wallet. A valid path points
- * to a concrete receiving address (purpose'/coin'/account'/change/index), so
- * account-root paths like `m/44'/60'/0'` are rejected.
+ * Validate a derivation path for an EVM wallet. A valid path points to a
+ * concrete receiving address under the Ethereum coin type
+ * (`m/44'/60'/account'/change/index`).
  */
 export function validateDerivationPath(value: string | undefined): string | null {
   const path = (value ?? "").trim();
   if (!path) return null;
-  if (!/^[mM]\//.test(path)) return "Path must start with m/";
-  const segments = path
-    .replace(/^[mM]\//, "")
-    .split("/")
-    .filter(Boolean);
-  if (segments.length === 0) return "Invalid derivation path";
-  if (segments.some((s) => s === "*")) return "Wildcards are not allowed";
-  if (segments.some((s) => !EVM_PATH_SEGMENT.test(s))) {
-    return "Path segments must be numbers, optionally hardened (e.g. 44')";
-  }
-  if (segments.length < 5) {
-    return "Path must point to a receiving address (e.g. m/44'/60'/0'/0/0)";
-  }
-  return null;
+  return EVM_PATH_PATTERN.test(path) ? null : "Path must look like m/44'/60'/0'/0/0";
 }
 
 /**
- * Validate a derivation path for a keystone-qr Solana wallet. Standard Solana
- * paths look like `m/44'/501'/0'/0'` (purpose'/coin'/account'/change').
+ * Validate a derivation path for a Solana wallet. Standard Solana paths look
+ * like `m/44'/501'/0'/0'` (purpose'/coin'/account'/change'): the coin type is
+ * enforced, and every segment must be hardened because SLIP-0010 ed25519
+ * derivation supports hardened children only.
  */
 export function validateSolanaPath(value: string | undefined): string | null {
   const path = (value ?? "").trim();
   if (!path) return null;
-  if (!/^[mM]\//.test(path)) return "Path must start with m/";
-  const segments = path
-    .replace(/^[mM]\//, "")
-    .split("/")
-    .filter(Boolean);
-  if (segments.length === 0) return "Invalid derivation path";
-  if (segments.some((s) => s === "*")) return "Wildcards are not allowed";
-  if (segments.some((s) => !EVM_PATH_SEGMENT.test(s))) {
-    return "Path segments must be numbers, optionally hardened (e.g. 44')";
-  }
-  if (segments.length < 4) {
-    return "Path must be account level (e.g. m/44'/501'/0'/0')";
-  }
-  return null;
+  return SOLANA_PATH_PATTERN.test(path) ? null : "Path must look like m/44'/501'/0'/0'";
 }
 
 const SIGNERS = ["watch-only", "keystone-qr", "trezor", "address-qr"] as const;
