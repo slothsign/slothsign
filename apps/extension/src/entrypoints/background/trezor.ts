@@ -1,5 +1,7 @@
 import TrezorConnect from "@trezor/connect-webextension";
 import { payloadToMessage, payloadToTx, payloadToTypedData } from "@slothsign/chain-evm";
+import { base64ToBytes, bytesToBase64 } from "@slothsign/chain-solana";
+import { bytesToHex, hexToBytes } from "viem";
 import { defaultPath, type WalletConfig } from "../../lib/config.ts";
 import type { SignPendingRequest } from "../../lib/requestStore.ts";
 
@@ -82,6 +84,53 @@ async function getTrezorAddressSilent(path: string): Promise<string> {
     throw new Error("Trezor returned no address");
   }
   return res.address;
+}
+
+/**
+ * Read a Solana address for a path without prompting on the device. Used as
+ * a pre-sign check so a wrong path fails before the user confirms anything.
+ */
+async function getTrezorSolanaAddressSilent(path: string): Promise<string> {
+  const res = unwrap<{ address: unknown }>(
+    await TrezorConnect.solanaGetAddress({ path, showOnTrezor: false, keepSession: true }),
+    "address check",
+  );
+  if (typeof res.address !== "string" || !res.address) {
+    throw new Error("Trezor returned no address");
+  }
+  return res.address;
+}
+
+/**
+ * Sign a Solana transaction request with the connected Trezor. Returns the
+ * base64-encoded fully-signed transaction bytes, matching what the
+ * background's `finalizeSignature` passes through for non-QR signers.
+ * Solana message signing is not supported by Trezor firmware.
+ */
+export async function signSolanaWithTrezor(
+  request: SignPendingRequest,
+  wallet: WalletConfig | undefined,
+): Promise<string> {
+  if (request.chain !== "solana") {
+    throw new Error("Not a Solana request");
+  }
+  const signerRequest = request.signerRequest;
+  if (!signerRequest) throw new Error("Missing signer request");
+  if (signerRequest.type !== "transaction") {
+    throw new Error("Trezor does not support Solana message signing");
+  }
+  await ensureTrezorConnect();
+  const path = wallet?.path || defaultPath("solana");
+  assertDeviceAddress(await getTrezorSolanaAddressSilent(path), request.address);
+  const serializedTx = bytesToHex(base64ToBytes(signerRequest.payload)).slice(2);
+  const res = unwrap<{ signature: unknown }>(
+    await TrezorConnect.solanaSignTransaction({ path, serializedTx, serialize: true }),
+    "transaction signing",
+  );
+  if (typeof res.signature !== "string" || !res.signature) {
+    throw new Error("Trezor returned no signed transaction");
+  }
+  return bytesToBase64(hexToBytes(`0x${res.signature}` as `0x${string}`));
 }
 
 /**

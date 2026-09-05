@@ -20,11 +20,17 @@ export function TrezorView({
     [request.signerRequest],
   );
 
-  if (request.chain !== "ethereum") {
+  // Trezor firmware cannot sign Solana off-chain messages.
+  const unsupported =
+    request.chain === "solana" && request.signerRequest?.type !== "transaction"
+      ? "Trezor cannot sign Solana messages. Ask the dApp for a transaction, or use a different signer."
+      : undefined;
+
+  if (unsupported) {
     return (
       <div className="space-y-3">
         <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          Trezor signing is EVM-only for now. Solana requests for this wallet cannot be signed.
+          {unsupported}
         </div>
         <Button variant="outline" className="w-full" onClick={() => cancelRequest(request.id)}>
           Cancel
@@ -64,7 +70,7 @@ export function TrezorView({
       </Button>
       <p className="text-center text-xs text-muted-foreground">
         Check the request above, then confirm on your device · path{" "}
-        <span className="font-mono">{wallet?.path || defaultPath("ethereum")}</span>
+        <span className="font-mono">{wallet?.path || defaultPath(request.chain)}</span>
       </p>
       <Button variant="outline" className="w-full" onClick={() => cancelRequest(request.id)}>
         Cancel

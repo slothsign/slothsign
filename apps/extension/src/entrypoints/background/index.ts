@@ -57,7 +57,7 @@ import {
   rejectRequest,
   resolveRequest,
 } from "./requestManager.ts";
-import { signEvmWithTrezor, getTrezorXpub } from "./trezor.ts";
+import { signEvmWithTrezor, signSolanaWithTrezor, getTrezorXpub } from "./trezor.ts";
 
 function accountsFromWallets(
   wallets: WalletConfig[],
@@ -482,8 +482,16 @@ browser.runtime.onMessage.addListener(
             return { ok: false, error: "Request not found" };
           }
           if (pending.signer !== "trezor") return { ok: false, error: "Not a Trezor request" };
-          if (pending.chain !== "ethereum") {
-            return { ok: false, error: "Trezor signing is EVM-only for now" };
+          if (
+            pending.chain === "solana" &&
+            pending.method === "signAndSendTransaction" &&
+            !(await readRpcUrls())[SOLANA_RPC_KEY]
+          ) {
+            // Fail before the device prompt: broadcasting needs a custom RPC.
+            return {
+              ok: false,
+              error: "No custom Solana RPC endpoint configured; signAndSendTransaction is disabled",
+            };
           }
           const wallets = await readStoredWallets();
           const wallet = wallets.find(
@@ -497,7 +505,10 @@ browser.runtime.onMessage.addListener(
           }, 20_000);
           let signature: string;
           try {
-            signature = await signEvmWithTrezor(pending, wallet);
+            signature =
+              pending.chain === "solana"
+                ? await signSolanaWithTrezor(pending, wallet)
+                : await signEvmWithTrezor(pending, wallet);
           } finally {
             clearInterval(keepAlive);
           }

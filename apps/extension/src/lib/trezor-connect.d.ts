@@ -44,6 +44,22 @@ declare module "@trezor/connect-webextension" {
         serializedPath: string;
       }>
     >;
+    solanaSignTransaction(params: {
+      path: string;
+      serializedTx: string;
+      serialize?: boolean;
+    }): Promise<TrezorConnectResponse<{ signature: string }>>;
+    solanaGetAddress(params: {
+      path: string;
+      showOnTrezor?: boolean;
+      keepSession?: boolean;
+    }): Promise<
+      TrezorConnectResponse<{
+        address: string;
+        path: number[];
+        serializedPath: string;
+      }>
+    >;
   };
 
   export default TrezorConnect;
