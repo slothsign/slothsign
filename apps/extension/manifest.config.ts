@@ -8,7 +8,7 @@ export default defineManifest({
   name: buildType === "zip" ? "SlothSign" : "SlothSign (Build)",
   description: "Just sign. Isolated Web3 signer provider.",
   version,
-  permissions: ["storage", "activeTab"],
+  permissions: ["storage", "activeTab", "scripting"],
   host_permissions: ["https://*/*"],
   background: {
     service_worker: "src/entrypoints/background/index.ts",

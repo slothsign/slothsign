@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EditableText } from "@/components/editable-text";
-import { validateDerivationPath, type WalletConfig } from "@/lib/config";
+import { validateDerivationPath, type SignerMode, type WalletConfig } from "@/lib/config";
 import { useOptionsStore } from "./options-store";
 import { Trash2, Undo2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -50,10 +50,12 @@ export function DeriveGroupDialog({
   open,
   onClose,
   xpub,
+  signer,
 }: {
   open: boolean;
   onClose: () => void;
   xpub: string;
+  signer: SignerMode;
 }) {
   const wallets = useOptionsStore((s) => s.wallets);
   const renameWallet = useOptionsStore((s) => s.renameWallet);
@@ -66,11 +68,8 @@ export function DeriveGroupDialog({
   const [error, setError] = useState<string>();
 
   const group = useMemo(
-    () =>
-      wallets.filter(
-        (w) => w.chain === "ethereum" && w.signer === "keystone-qr" && w.xpub === xpub,
-      ),
-    [wallets, xpub],
+    () => wallets.filter((w) => w.chain === "ethereum" && w.signer === signer && w.xpub === xpub),
+    [wallets, xpub, signer],
   );
 
   useEffect(() => {
@@ -159,7 +158,7 @@ export function DeriveGroupDialog({
       for (const r of newRows) {
         const { address, valid } = derivedAddress(r.index);
         if (!valid) continue;
-        const id = await deriveAddWallet(xpub, `${prefix}${r.index}`, address, r.label);
+        const id = await deriveAddWallet(xpub, `${prefix}${r.index}`, address, r.label, signer);
         if (!id) {
           setError(`Could not add wallet at ${prefix}${r.index} — address already exists`);
           return;

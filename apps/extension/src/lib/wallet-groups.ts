@@ -12,7 +12,10 @@ export function groupByXpub(wallets: WalletConfig[]): WalletConfig[][] {
   const groups: WalletConfig[][] = [];
   const indexByXpub = new Map<string, number>();
   for (const w of wallets) {
-    const key = w.chain === "ethereum" && w.signer === "keystone-qr" && w.xpub ? w.xpub : null;
+    const key =
+      w.chain === "ethereum" && (w.signer === "keystone-qr" || w.signer === "trezor") && w.xpub
+        ? w.xpub
+        : null;
     const existing = key ? indexByXpub.get(key) : undefined;
     if (existing !== undefined) {
       groups[existing]!.push(w);

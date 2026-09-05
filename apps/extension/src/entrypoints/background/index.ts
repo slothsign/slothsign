@@ -57,6 +57,7 @@ import {
   rejectRequest,
   resolveRequest,
 } from "./requestManager.ts";
+import { signEvmWithTrezor, getTrezorXpub } from "./trezor.ts";
 
 function accountsFromWallets(
   wallets: WalletConfig[],
@@ -257,6 +258,9 @@ async function broadcastAccountsChanged(
 function sameAccounts(a: string[], b: string[]): boolean {
   return a.length === b.length && a.every((value, index) => value === b[index]);
 }
+
+/** Guards against double-clicks opening two concurrent device sessions. */
+const trezorSigning = new Set<string>();
 
 browser.storage.onChanged.addListener(async (changes, area) => {
   if (area !== "local") return;
@@ -465,6 +469,73 @@ browser.runtime.onMessage.addListener(
           console.error("[SlothSign] submit-signature failed:", error);
           rejectRequest(id, readableError(error));
           return { ok: false, error: readableError(error) };
+        }
+      }
+
+      case "trezor-sign": {
+        const { id } = msg;
+        if (trezorSigning.has(id)) return { ok: false, error: "Signing already in progress" };
+        trezorSigning.add(id);
+        try {
+          const pending = await getRequest(id);
+          if (!pending || pending.kind !== "sign" || pending.status !== "pending") {
+            return { ok: false, error: "Request not found" };
+          }
+          if (pending.signer !== "trezor") return { ok: false, error: "Not a Trezor request" };
+          if (pending.chain !== "ethereum") {
+            return { ok: false, error: "Trezor signing is EVM-only for now" };
+          }
+          const wallets = await readStoredWallets();
+          const wallet = wallets.find(
+            (w) =>
+              w.chain === pending.chain &&
+              w.address.toLowerCase() === pending.address.toLowerCase(),
+          );
+          // Keep the service worker alive while the user confirms on the device.
+          const keepAlive = setInterval(() => {
+            void browser.runtime.getPlatformInfo().catch(() => undefined);
+          }, 20_000);
+          let signature: string;
+          try {
+            signature = await signEvmWithTrezor(pending, wallet);
+          } finally {
+            clearInterval(keepAlive);
+          }
+          // The user may have cancelled the popup while the device prompt was open.
+          const current = await getRequest(id);
+          if (!current || current.kind !== "sign" || current.status !== "pending") {
+            return { ok: false, error: "Request no longer pending" };
+          }
+          try {
+            const result = await finalizeSignature(current, signature);
+            resolveRequest(id, result);
+            return { ok: true };
+          } catch (error) {
+            console.error("[SlothSign] trezor-sign finalize failed:", error);
+            rejectRequest(id, readableError(error));
+            return { ok: false, error: readableError(error) };
+          }
+        } catch (error) {
+          // Device cancellations/denials leave the request pending for retry.
+          return { ok: false, error: error instanceof Error ? error.message : String(error) };
+        } finally {
+          trezorSigning.delete(id);
+        }
+      }
+
+      case "trezor-get-xpub": {
+        const { path } = msg;
+        if (!path.trim()) return { ok: false, error: "Derivation path is required" };
+        const keepAlive = setInterval(() => {
+          void browser.runtime.getPlatformInfo().catch(() => undefined);
+        }, 20_000);
+        try {
+          const xpub = await getTrezorXpub(path.trim());
+          return { ok: true, xpub };
+        } catch (error) {
+          return { ok: false, error: error instanceof Error ? error.message : String(error) };
+        } finally {
+          clearInterval(keepAlive);
         }
       }
 

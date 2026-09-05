@@ -15,9 +15,10 @@ import {
   type SignerMode,
 } from "@/lib/config";
 import { decodeAirGapKey, walletPathFromAirGap } from "@/lib/keystone";
+import { trezorGetXpub } from "@/lib/actions";
 import { useDebounce } from "@/lib/use-debounce";
 import { useShallow } from "zustand/react/shallow";
-import { GitBranch, RefreshCw, ScanLine } from "lucide-react";
+import { GitBranch, RefreshCw, ScanLine, Usb } from "lucide-react";
 import { useOptionsStore, validateField } from "./options-store";
 import { VALIDATION_DEBOUNCE_MS } from "./constants";
 import { DeriveGroupDialog } from "./derive-group-dialog";
@@ -73,7 +74,7 @@ export function AddWalletForm({ onDone }: { onDone: () => void }) {
   const debouncedPath = useDebounce(path, VALIDATION_DEBOUNCE_MS);
 
   useEffect(() => {
-    if (signer !== "keystone-qr") {
+    if (signer !== "keystone-qr" && signer !== "trezor") {
       setFieldError("path", "");
       return;
     }
@@ -93,7 +94,7 @@ export function AddWalletForm({ onDone }: { onDone: () => void }) {
   const debouncedMismatch = useDebounce({ address, xpub, path }, VALIDATION_DEBOUNCE_MS);
 
   useEffect(() => {
-    if (chain !== "ethereum" || signer !== "keystone-qr") {
+    if (chain !== "ethereum" || (signer !== "keystone-qr" && signer !== "trezor")) {
       setFieldError("addressMismatch", "");
       return;
     }
@@ -137,12 +138,51 @@ export function AddWalletForm({ onDone }: { onDone: () => void }) {
 
   const [scanOpen, setScanOpen] = useState(false);
   const [deriveOpen, setDeriveOpen] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const [fetchError, setFetchError] = useState<string>();
   const deriveEnabled =
     chain === "ethereum" &&
-    signer === "keystone-qr" &&
+    (signer === "keystone-qr" || signer === "trezor") &&
     Boolean(xpub.trim() && path.trim()) &&
     validateDerivationPath(path) === null &&
     validateXpub(xpub) === null;
+
+  /** Fetch the parent-level xpub from the device and derive the address. */
+  async function handleFetchFromTrezor() {
+    const message = validateDerivationPath(path);
+    if (message) {
+      setFieldError("path", message);
+      return;
+    }
+    const segments = path
+      .trim()
+      .replace(/^[mM]\/?/, "")
+      .split("/")
+      .filter(Boolean);
+    if (segments.length < 2) {
+      setFetchError("Path is too short to fetch from the device");
+      return;
+    }
+    const parent = `m/${segments.slice(0, -1).join("/")}`;
+    setFetching(true);
+    setFetchError(undefined);
+    try {
+      const res = await trezorGetXpub(parent);
+      if (!res.ok || !res.xpub) throw new Error(res.error ?? "Could not fetch xpub");
+      const key = res.xpub.trim();
+      if (validateXpub(key) !== null) throw new Error("Device returned an invalid xpub");
+      setXpub(key);
+      try {
+        setAddress(evmAddressFromXpub(key, path.trim()));
+      } catch {
+        setFetchError("Fetched the xpub, but the address could not be derived for this path");
+      }
+    } catch (e) {
+      setFetchError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setFetching(false);
+    }
+  }
 
   function handleScan(data: string) {
     if (signer === "keystone-qr") {
@@ -160,6 +200,8 @@ export function AddWalletForm({ onDone }: { onDone: () => void }) {
     }
     setAddress(data.trim());
   }
+
+  const showFetchButton = chain === "ethereum" && signer === "trezor";
 
   return (
     <>
@@ -192,17 +234,32 @@ export function AddWalletForm({ onDone }: { onDone: () => void }) {
                 *
               </span>
             </Label>
-            <Button
-              type="button"
-              variant="ghost"
-              aria-label="Scan QR"
-              title="Scan QR"
-              className="h-auto gap-1 px-1 py-0.5 text-xs font-normal text-muted-foreground"
-              onClick={() => setScanOpen(true)}
-            >
-              <ScanLine className="size-3.5" />
-              {signer === "keystone-qr" ? "Scan AirGap QR or address" : "Scan address"}
-            </Button>
+            {showFetchButton ? (
+              <Button
+                type="button"
+                variant="ghost"
+                aria-label="Fetch from Trezor"
+                title="Fetch xpub and address from the connected Trezor"
+                className="h-auto gap-1 px-1 py-0.5 text-xs font-normal text-muted-foreground"
+                disabled={fetching}
+                onClick={() => void handleFetchFromTrezor()}
+              >
+                <Usb className="size-3.5" />
+                {fetching ? "Waiting for Trezor…" : "Fetch from Trezor"}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                aria-label="Scan QR"
+                title="Scan QR"
+                className="h-auto gap-1 px-1 py-0.5 text-xs font-normal text-muted-foreground"
+                onClick={() => setScanOpen(true)}
+              >
+                <ScanLine className="size-3.5" />
+                {signer === "keystone-qr" ? "Scan AirGap QR or address" : "Scan address"}
+              </Button>
+            )}
           </div>
           <Input
             placeholder={chain === "ethereum" ? "0x…" : "Base58 pubkey…"}
@@ -210,6 +267,7 @@ export function AddWalletForm({ onDone }: { onDone: () => void }) {
             aria-invalid={Boolean(fieldErrors.address)}
             onChange={(e) => setAddress(e.target.value)}
           />
+          {fetchError ? <p className="text-xs text-destructive">{fetchError}</p> : null}
           {fieldErrors.address ? (
             <p className="text-xs text-destructive">{fieldErrors.address}</p>
           ) : null}
@@ -225,7 +283,7 @@ export function AddWalletForm({ onDone }: { onDone: () => void }) {
             onChange={(e) => setLabel(e.target.value)}
           />
         </div>
-        {chain === "solana" && signer === "keystone-qr" ? (
+        {chain === "solana" && (signer === "keystone-qr" || signer === "trezor") ? (
           <div className="space-y-1.5">
             <Label>Derivation path</Label>
             <Input
@@ -238,7 +296,7 @@ export function AddWalletForm({ onDone }: { onDone: () => void }) {
             ) : null}
           </div>
         ) : null}
-        {chain === "ethereum" && signer === "keystone-qr" ? (
+        {chain === "ethereum" && (signer === "keystone-qr" || signer === "trezor") ? (
           <>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -301,6 +359,7 @@ export function AddWalletForm({ onDone }: { onDone: () => void }) {
           open={deriveOpen}
           onClose={() => setDeriveOpen(false)}
           xpub={xpub.trim()}
+          signer={signer}
         />
       ) : null}
     </>

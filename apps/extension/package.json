@@ -28,6 +28,7 @@
     "@slothsign/keystore": "workspace:*",
     "@solana/wallet-standard-features": "^1.4.0",
     "@solana/web3.js": "^1.98.4",
+    "@trezor/connect-webextension": "^9.7.3",
     "@vitejs/plugin-react": "^6.1.0",
     "@wallet-standard/base": "^1.1.1",
     "@wallet-standard/features": "^1.1.1",

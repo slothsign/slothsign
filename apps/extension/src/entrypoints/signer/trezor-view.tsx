@@ -1,12 +1,70 @@
+import { useMemo, useState } from "react";
+import { Usb } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cancelRequest } from "@/lib/actions";
+import { cancelRequest, trezorSign } from "@/lib/actions";
+import { defaultPath, type WalletConfig } from "@/lib/config";
 import type { SignPendingRequest } from "@/lib/requestStore";
 
-export function TrezorView({ request }: { request: SignPendingRequest }) {
+export function TrezorView({
+  request,
+  wallet,
+}: {
+  request: SignPendingRequest;
+  wallet?: WalletConfig;
+}) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string>();
+
+  const rawJson = useMemo(
+    () => JSON.stringify(request.signerRequest, null, 2),
+    [request.signerRequest],
+  );
+
+  if (request.chain !== "ethereum") {
+    return (
+      <div className="space-y-3">
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Trezor signing is EVM-only for now. Solana requests for this wallet cannot be signed.
+        </div>
+        <Button variant="outline" className="w-full" onClick={() => cancelRequest(request.id)}>
+          Cancel
+        </Button>
+      </div>
+    );
+  }
+
+  async function sign() {
+    if (pending) return;
+    setPending(true);
+    setError(undefined);
+    try {
+      const res = await trezorSign(request.id);
+      if (!res.ok) throw new Error(res.error ?? "Trezor signing failed");
+      // On success the background resolves the request and this window closes.
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setPending(false);
+    }
+  }
+
   return (
     <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">
-        Trezor signing for this wallet is not wired up yet. The request has been kept pending.
+      <details className="rounded-md border border-border p-2">
+        <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+          Raw data
+        </summary>
+        <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-all font-mono text-xs leading-snug text-muted-foreground">
+          {rawJson}
+        </pre>
+      </details>
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      <Button size="lg" className="w-full" disabled={pending} onClick={() => void sign()}>
+        <Usb className="size-4" />
+        {pending ? "Waiting for Trezor…" : "Sign with Trezor"}
+      </Button>
+      <p className="text-center text-xs text-muted-foreground">
+        Check the request above, then confirm on your device · path{" "}
+        <span className="font-mono">{wallet?.path || defaultPath("ethereum")}</span>
       </p>
       <Button variant="outline" className="w-full" onClick={() => cancelRequest(request.id)}>
         Cancel

@@ -43,6 +43,7 @@ interface OptionsState {
     path: string,
     address: string,
     label?: string,
+    signer?: SignerMode,
   ) => Promise<string | false>;
   removeWallet: (id: string) => Promise<void>;
   renameWallet: (id: string, label: string) => Promise<void>;
@@ -108,14 +109,14 @@ export const useOptionsStore = create<OptionsState>((set, get) => ({
     return true;
   },
 
-  async deriveAddWallet(xpub, path, address, label) {
+  async deriveAddWallet(xpub, path, address, label, signer = "keystone-qr") {
     const { wallets } = get();
     const message = validateField(wallets, "ethereum", address);
     if (message) return false;
     const newWallet = normalizeWallet({
       chain: "ethereum",
       address,
-      signer: "keystone-qr",
+      signer,
       label: label ?? "",
       path,
       xpub,

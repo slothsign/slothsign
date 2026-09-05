@@ -38,6 +38,16 @@ export function submitSignature(
   return send({ type: "submit-signature", id, payload });
 }
 
+export function trezorSign(id: string): Promise<{ ok: boolean; error?: string }> {
+  return send({ type: "trezor-sign", id });
+}
+
+export function trezorGetXpub(
+  path: string,
+): Promise<{ ok: boolean; xpub?: string; error?: string }> {
+  return send({ type: "trezor-get-xpub", path });
+}
+
 export function cancelRequest(id: string): Promise<{ ok: boolean }> {
   return send({ type: "cancel-request", id });
 }

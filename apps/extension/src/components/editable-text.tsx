@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { CheckIcon, PencilIcon, ScanLine, XIcon } from "lucide-react";
+import { CheckIcon, PencilIcon, ScanLine, Usb, XIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 export function EditableText({
@@ -17,6 +17,7 @@ export function EditableText({
   inputClassName,
   className,
   scan,
+  fetch,
   wrap,
   readOnly = false,
   editButtons,
@@ -31,6 +32,8 @@ export function EditableText({
   inputClassName?: string;
   className?: string;
   scan?: { decode: (text: string) => string };
+  /** Device fetch populating the draft, e.g. xpub from a connected Trezor. */
+  fetch?: { fetch: () => Promise<string>; label?: string };
   /** Wrap long values instead of truncating them (display mode). */
   wrap?: boolean;
   /** Verified values cannot be changed — no edit affordance is rendered. */
@@ -44,6 +47,8 @@ export function EditableText({
   const [draft, setDraft] = useState(value);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [scanError, setScanError] = useState<string>();
+  const [fetching, setFetching] = useState(false);
+  const [fetchError, setFetchError] = useState<string>();
   const [saveError, setSaveError] = useState<string>();
 
   function commit() {
@@ -75,6 +80,19 @@ export function EditableText({
     }
   }
 
+  async function handleFetch() {
+    if (!fetch || fetching) return;
+    setFetching(true);
+    setFetchError(undefined);
+    try {
+      setDraft(await fetch.fetch());
+    } catch (e) {
+      setFetchError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setFetching(false);
+    }
+  }
+
   if (readOnly) {
     return (
       <div className="flex min-w-0 items-center gap-1">
@@ -103,26 +121,45 @@ export function EditableText({
         if (e.key === "Escape") setEditing(false);
       },
     };
-    const defaultButtons: ReactNode[][] = [
+    const captureButtons: ReactNode[] = [
       ...(scan
         ? [
-            [
-              <Button
-                key="scan"
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                aria-label="Scan QR"
-                title="Scan QR"
-                className="text-muted-foreground"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={openDialog}
-              >
-                <ScanLine />
-              </Button>,
-            ],
+            <Button
+              key="scan"
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Scan QR"
+              title="Scan QR"
+              className="text-muted-foreground"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={openDialog}
+            >
+              <ScanLine />
+            </Button>,
           ]
         : []),
+      ...(fetch
+        ? [
+            <Button
+              key="fetch"
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label={fetch.label ?? "Fetch from device"}
+              title={fetch.label ?? "Fetch from device"}
+              className="text-muted-foreground"
+              disabled={fetching}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => void handleFetch()}
+            >
+              <Usb />
+            </Button>,
+          ]
+        : []),
+    ];
+    const defaultButtons: ReactNode[][] = [
+      ...(captureButtons.length > 0 ? [captureButtons] : []),
       [
         <Button
           key="save"
@@ -171,6 +208,7 @@ export function EditableText({
           </div>
         </form>
         {saveError ? <p className="mt-1 text-xs text-destructive">{saveError}</p> : null}
+        {fetchError ? <p className="mt-1 text-xs text-destructive">{fetchError}</p> : null}
       </div>
     );
     return scan ? (

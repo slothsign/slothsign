@@ -469,11 +469,14 @@ export function normalizeWallet(input: unknown): WalletConfig {
 
 /**
  * Validate that a wallet's path+xpub derive to its address.
- * Returns `null` when validation doesn't apply (not keystone-qr EVM, or
- * missing path/xpub). Returns `true`/`false` for the match status.
+ * Returns `null` when validation doesn't apply (not an EVM xpub wallet, or
+ * missing path/xpub). Returns `true`/`false` for the match status. Trezor
+ * wallets use this only for mismatch warnings — signing stays enabled and
+ * the device is the source of truth.
  */
 export function validateWallet(wallet: WalletConfig): boolean | null {
-  if (wallet.chain !== "ethereum" || wallet.signer !== "keystone-qr") return null;
+  if (wallet.chain !== "ethereum") return null;
+  if (wallet.signer !== "keystone-qr" && wallet.signer !== "trezor") return null;
   if (!wallet.path || !wallet.xpub) return null;
   try {
     return (

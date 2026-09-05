@@ -65,7 +65,7 @@ export function RequestDetail({
             )}
           </div>
           <Separator />
-          <TrezorView request={request} />
+          <TrezorView request={request} wallet={wallet} />
         </>
       )}
     </div>
