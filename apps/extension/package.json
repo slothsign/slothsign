@@ -7,7 +7,8 @@
     "dev": "SLOTHSIGN_BUILD_TYPE=build vite build --watch",
     "build": "SLOTHSIGN_BUILD_TYPE=build vite build",
     "zip": "SLOTHSIGN_BUILD_TYPE=zip vite build && cd dist && zip -r ../slothsign.zip .",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "test": "bun test"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
