@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { CircleHelp } from "lucide-react";
+import { CircleHelp, RefreshCw } from "lucide-react";
 import { decodeResult, encodeResult, REQUEST_PREFIX, RESULT_PREFIX } from "@slothsign/core";
 import { submitSignature } from "@/webext/actions";
 import { evmGasInfo, gasBlockedReason } from "@/lib/evm-gas";
@@ -27,7 +27,8 @@ export function QrSignFlow({
   const [error, setError] = useState<string>();
 
   const showQr = request.signer !== "address-qr";
-  const gasBlocked = gasBlockedReason(evmGasInfo(request));
+  const gas = evmGasInfo(request);
+  const gasBlocked = gasBlockedReason(gas);
 
   const qr = useMemo(() => {
     if (!showQr) {
@@ -129,34 +130,44 @@ export function QrSignFlow({
         )}
       </section>
 
-      {gasBlocked ? (
-        <div className="rounded-md border border-border px-3 py-2 text-sm text-muted-foreground">
-          {gasBlocked}
-        </div>
-      ) : showQr ? (
-        <Tabs
-          value={dataTab}
-          onValueChange={(value) => {
-            setDataTab(value);
-            if (value === "qr") setError(undefined);
-          }}
-        >
-          <TabsList className="w-full">
-            <TabsTrigger value="data">Sign data</TabsTrigger>
-            <TabsTrigger value="qr">QR code</TabsTrigger>
-          </TabsList>
-          <TabsContent value="data">{dataContent}</TabsContent>
-          <TabsContent value="qr">
-            {qr.error ? (
-              <p className="text-center text-xs text-destructive">{qr.error}</p>
-            ) : (
-              <QrCodePanel parts={qr.parts} caption={scannerCaption} />
-            )}
-          </TabsContent>
-        </Tabs>
-      ) : (
-        dataContent
-      )}
+      <div className="relative">
+        {showQr ? (
+          <Tabs
+            value={dataTab}
+            onValueChange={(value) => {
+              setDataTab(value);
+              if (value === "qr") setError(undefined);
+            }}
+          >
+            <TabsList className="w-full">
+              <TabsTrigger value="data">Sign data</TabsTrigger>
+              <TabsTrigger value="qr">QR code</TabsTrigger>
+            </TabsList>
+            <TabsContent value="data">{dataContent}</TabsContent>
+            <TabsContent value="qr">
+              {qr.error ? (
+                <p className="text-center text-xs text-destructive">{qr.error}</p>
+              ) : (
+                <QrCodePanel parts={qr.parts} caption={scannerCaption} />
+              )}
+            </TabsContent>
+          </Tabs>
+        ) : (
+          dataContent
+        )}
+
+        {gasBlocked ? (
+          <div
+            aria-live="polite"
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-md bg-background"
+          >
+            {gas.fetching ? (
+              <RefreshCw className="size-4 animate-spin text-muted-foreground" />
+            ) : null}
+            <span className="px-4 text-center text-xs text-muted-foreground">{gasBlocked}</span>
+          </div>
+        ) : null}
+      </div>
 
       <SignatureInput
         value={signature}
@@ -165,7 +176,6 @@ export function QrSignFlow({
         error={error}
         chain={request.chain}
         disabled={gasBlocked !== undefined}
-        disabledHint={gasBlocked}
       />
     </div>
   );
