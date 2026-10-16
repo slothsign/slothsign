@@ -13,6 +13,7 @@ import {
   REQUEST_TTL_MS,
   storeRequest,
   updateRequest,
+  type EvmGasState,
   type PendingRequest,
 } from "../../lib/requestStore.ts";
 import { buildSignerRequest, resolveAddress } from "./signers.ts";
@@ -147,6 +148,7 @@ export interface CreatePendingInput {
   params: unknown[];
   originUrl: string | undefined;
   chainId: string;
+  gas?: EvmGasState;
 }
 
 /**
@@ -191,6 +193,7 @@ export async function createPendingRequest(input: CreatePendingInput): Promise<P
       wallet.signer === "keystone-qr" || wallet.signer === "address-qr"
         ? encodeRequest(signerRequest)
         : undefined,
+    gas: input.gas,
     status: "pending",
     createdAt: now,
     expiresAt: now + REQUEST_TTL_MS,

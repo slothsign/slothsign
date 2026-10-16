@@ -15,6 +15,17 @@ interface PendingRequestBase {
   expiresAt: number;
 }
 
+/**
+ * Provenance and progress of an EVM transaction's gas limit. The value itself
+ * lives in `signerRequest.payload`; this only tracks where it came from and
+ * whether an estimate is in flight or last failed.
+ */
+export interface EvmGasState {
+  source: "dapp" | "estimated";
+  fetching?: boolean;
+  error?: string;
+}
+
 export interface SignPendingRequest extends PendingRequestBase {
   kind: "sign";
   address: string;
@@ -24,6 +35,8 @@ export interface SignPendingRequest extends PendingRequestBase {
   signerRequest?: SignerRequest;
   /** sloth://req/… transport string (offline mode) */
   transport?: string;
+  /** EVM gas-limit state (eth_sendTransaction only) */
+  gas?: EvmGasState;
 }
 
 export interface ConnectPendingRequest extends PendingRequestBase {
@@ -57,6 +70,9 @@ export interface RequestPatch {
   status?: RequestStatus;
   result?: unknown;
   error?: string;
+  signerRequest?: SignerRequest;
+  transport?: string;
+  gas?: EvmGasState;
 }
 
 export async function updateRequest(id: string, patch: RequestPatch): Promise<void> {

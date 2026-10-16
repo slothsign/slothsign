@@ -93,6 +93,7 @@ export const RuntimeMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("get-current-chain") }),
   z.object({ type: z.literal("solana-rpc-request") }),
   z.object({ type: z.literal("submit-signature"), id: z.string(), payload: z.string() }),
+  z.object({ type: z.literal("refresh-gas"), id: z.string() }),
   z.object({ type: z.literal("trezor-sign"), id: z.string() }),
   z.object({ type: z.literal("trezor-get-xpub"), path: z.string() }),
   z.object({

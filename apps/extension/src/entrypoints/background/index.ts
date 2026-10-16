@@ -1,6 +1,6 @@
 import browser from "webextension-polyfill";
-import { decodeResult } from "@slothsign/core";
-import { payloadToTx } from "@slothsign/chain-evm";
+import { decodeResult, encodeRequest } from "@slothsign/core";
+import { numField, payloadToTx, txToPayload } from "@slothsign/chain-evm";
 import {
   base64ToBytes,
   broadcastTransaction,
@@ -17,11 +17,17 @@ import {
   parseSignature,
   serializeTransaction,
   toHex,
+  type Address,
   type Hex,
 } from "viem";
 import { JsonRpcResponseSchema, RuntimeMessageSchema } from "../../lib/messages.ts";
 import { evmSerializable } from "../../lib/keystone.ts";
-import type { SignPendingRequest } from "../../lib/requestStore.ts";
+import {
+  updateRequest,
+  type EvmGasState,
+  type RequestPatch,
+  type SignPendingRequest,
+} from "../../lib/requestStore.ts";
 import {
   isOriginConnected,
   markOriginConnected,
@@ -200,6 +206,99 @@ async function prepareEvmTxParams(params: unknown[], chainId: string): Promise<u
     return params;
   }
   return [next, ...params.slice(1)];
+}
+
+/** The effective gas limit on a raw eth_sendTransaction params object. */
+function gasLimitOf(tx: Record<string, unknown>): string | undefined {
+  const gas = typeof tx.gas === "string" && tx.gas ? tx.gas : undefined;
+  const limit = typeof tx.gasLimit === "string" && tx.gasLimit ? tx.gasLimit : undefined;
+  return gas ?? limit;
+}
+
+/**
+ * Gas state for a freshly received EVM transaction: dApp-supplied, or flagged
+ * for estimation. The value is only written into the payload once an estimate
+ * succeeds, so a dApp-supplied limit is never overwritten automatically.
+ */
+function evmGasStateFor(params: unknown[]): EvmGasState {
+  const tx = params[0];
+  if (typeof tx === "object" && tx !== null && gasLimitOf(tx as Record<string, unknown>)) {
+    return { source: "dapp" };
+  }
+  return { source: "estimated", fetching: true };
+}
+
+/**
+ * Estimate the gas limit for a pending EVM transaction against the chain's RPC.
+ * Throws when no RPC is configured or the node rejects the estimate.
+ */
+async function estimateEvmGas(request: SignPendingRequest): Promise<string> {
+  const signerRequest = request.signerRequest;
+  if (signerRequest?.type !== "transaction") {
+    throw new Error("Not an EVM transaction request");
+  }
+  const chain = getEvmChain(signerRequest.chainId);
+  const rpcUrls = await readRpcUrls();
+  const url = chain ? getEvmRpcUrl(chain, rpcUrls) : undefined;
+  if (!chain || !url) throw new Error("no RPC endpoint for this chain");
+  const tx = payloadToTx(signerRequest.payload);
+  const client = createPublicClient({ chain, transport: http(url) });
+  const gas = await client.estimateGas({
+    account: request.address as Address,
+    to: tx.to as Address | undefined,
+    value: numField(tx.value),
+    data: tx.data as Hex | undefined,
+  });
+  return toHex(gas);
+}
+
+/**
+ * Write an estimated gas limit into the stored request, refreshing the QR
+ * transport so an already-rendered code cannot be signed against stale gas.
+ */
+async function applyEvmGas(request: SignPendingRequest, gas: string): Promise<void> {
+  const signerRequest = request.signerRequest;
+  if (signerRequest?.type !== "transaction") return;
+  const tx = payloadToTx(signerRequest.payload);
+  const nextRequest = { ...signerRequest, payload: txToPayload({ ...tx, gas }) };
+  const patch: RequestPatch = {
+    signerRequest: nextRequest,
+    gas: { source: "estimated", fetching: false },
+  };
+  if (request.signer === "keystone-qr" || request.signer === "address-qr") {
+    patch.transport = encodeRequest(nextRequest);
+  }
+  await updateRequest(request.id, patch);
+}
+
+/**
+ * (Re-)estimate the gas limit for a pending EVM transaction. Runs for the
+ * initial estimate on arrival and for the popup's refresh action.
+ */
+async function refreshEvmGas(id: string): Promise<{ ok: boolean; error?: string }> {
+  const request = await getRequest(id);
+  if (!request || request.kind !== "sign" || request.chain !== "ethereum") {
+    return { ok: false, error: "Request not found" };
+  }
+  if (request.signerRequest?.type !== "transaction") {
+    return { ok: false, error: "Not an EVM transaction request" };
+  }
+  const source = request.gas?.source ?? "estimated";
+  await updateRequest(id, { gas: { source, fetching: true } });
+  try {
+    const gas = await estimateEvmGas(request);
+    const current = await getRequest(id);
+    if (!current || current.kind !== "sign" || current.status !== "pending") {
+      return { ok: true };
+    }
+    await applyEvmGas(current, gas);
+    return { ok: true };
+  } catch (error) {
+    log?.error(`gas estimation failed for ${id}:`, error);
+    const message = readableError(error);
+    await updateRequest(id, { gas: { source, fetching: false, error: message } });
+    return { ok: false, error: message };
+  }
 }
 
 function readSolanaSendOptions(params: unknown[]): SolanaBroadcastOptions | undefined {
@@ -443,19 +542,24 @@ browser.runtime.onMessage.addListener(
           }
         }
         const chainId = msg.chain === "ethereum" ? await readEvmChainId() : "solana:mainnet";
-        const params =
-          msg.chain === "ethereum" && msg.method === "eth_sendTransaction"
-            ? await prepareEvmTxParams(msg.params, chainId)
-            : msg.params;
+        const isEvmTx = msg.chain === "ethereum" && msg.method === "eth_sendTransaction";
+        const params = isEvmTx ? await prepareEvmTxParams(msg.params, chainId) : msg.params;
+        const gas = isEvmTx ? evmGasStateFor(params) : undefined;
         const request = await createPendingRequest({
           chain: msg.chain,
           method: msg.method,
           params,
           originUrl: sender.url,
           chainId,
+          gas,
         });
+        if (gas?.fetching) void refreshEvmGas(request.id);
         await markOriginConnected(msg.chain, extractOrigin(sender.url));
         return awaitResolution(request.id);
+      }
+
+      case "refresh-gas": {
+        return refreshEvmGas(msg.id);
       }
 
       case "submit-signature": {

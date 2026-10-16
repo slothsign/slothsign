@@ -38,6 +38,10 @@ export function submitSignature(
   return send({ type: "submit-signature", id, payload });
 }
 
+export function refreshGas(id: string): Promise<{ ok: boolean; error?: string }> {
+  return send({ type: "refresh-gas", id });
+}
+
 export function trezorSign(id: string): Promise<{ ok: boolean; error?: string }> {
   return send({ type: "trezor-sign", id });
 }
