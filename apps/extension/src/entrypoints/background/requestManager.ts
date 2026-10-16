@@ -1,27 +1,30 @@
 import { encodeRequest, type SignerRequest } from "@slothsign/core";
 import browser from "webextension-polyfill";
-import { markOriginConnected, readStoredWallets, walletForAddress } from "../../lib/config.ts";
 import { extractOrigin, isAllowedPage } from "../../lib/origin.ts";
-import { openRequestWindow } from "../../lib/popup.ts";
 import { log } from "../../lib/log.ts";
+import {
+  newRequestId,
+  REQUEST_TTL_MS,
+  type EvmGasState,
+  type PendingRequest,
+} from "../../lib/requests.ts";
+import { walletForAddress } from "../../lib/wallet.ts";
+import { openRequestWindow } from "../../webext/popup.ts";
 import {
   deleteRequest,
   getRequest,
   latestPendingRequest,
   listPendingRequests,
-  newRequestId,
-  REQUEST_TTL_MS,
   storeRequest,
   updateRequest,
-  type EvmGasState,
-  type PendingRequest,
-} from "../../lib/requestStore.ts";
+} from "../../webext/request-store.ts";
+import { markOriginConnected, readStoredWallets } from "../../webext/storage.ts";
 import { buildSignerRequest, resolveAddress } from "./signers.ts";
 import {
   clearSignerWindow,
   clearSignerWindowForRequest,
   getSignerWindow,
-} from "../../lib/signerWindows.ts";
+} from "../../webext/signerWindows.ts";
 
 /**
  * Whether a signer popup is currently open. The stored entry is only ever an

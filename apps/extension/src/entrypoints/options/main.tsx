@@ -1,5 +1,5 @@
-import { setWallets } from "@/lib/actions";
-import type { WalletConfig } from "@/lib/config";
+import { setWallets } from "@/webext/actions";
+import type { WalletConfig } from "@/lib/types";
 import { csvToWallets, walletsToCsv } from "@/lib/wallet-csv";
 import { groupByXpub } from "@/lib/wallet-groups";
 import "@/style.css";

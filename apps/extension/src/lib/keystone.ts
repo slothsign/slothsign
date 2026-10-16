@@ -25,13 +25,9 @@ import {
 import { fingerprintFromXpub } from "@slothsign/keystore";
 import type { SignerRequest } from "@slothsign/core";
 import { bytesToHex } from "viem";
-import {
-  normalizeEvmPath,
-  DEFAULT_EVM_PATH,
-  DEFAULT_SOLANA_PATH,
-  type WalletConfig,
-} from "./config.ts";
-import type { SignPendingRequest } from "./requestStore.ts";
+import { DEFAULT_EVM_PATH, DEFAULT_SOLANA_PATH, normalizeEvmPath } from "./derivation.ts";
+import type { WalletConfig } from "./types.ts";
+import type { SignPendingRequest } from "./requests.ts";
 import { encodeDataItem } from "./ur-cbor.ts";
 
 const ETH_SIGNATURE_UR = "eth-signature";

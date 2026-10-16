@@ -1,16 +1,12 @@
-import browser from "webextension-polyfill";
 import type { AccountRef, Chain } from "@slothsign/core";
-import { isAddress } from "viem";
-import { PublicKey } from "@solana/web3.js";
 import { evmAddressFromXpub, fingerprintFromXpub } from "@slothsign/keystore";
+import { PublicKey } from "@solana/web3.js";
+import { isAddress } from "viem";
 import { nanoid } from "nanoid";
 import { z } from "zod";
+import { defaultPath } from "./derivation.ts";
 import { ActiveWalletsSchema, type ActiveWallets } from "./messages.ts";
-
-export { ActiveWalletsSchema };
-export type { ActiveWallets };
-
-export type SignerMode = "watch-only" | "keystone-qr" | "trezor" | "address-qr";
+import type { SignerMode, WalletConfig } from "./types.ts";
 
 export const SIGNER_MODE_LABELS: Record<SignerMode, string> = {
   "watch-only": "Watch-only",
@@ -38,99 +34,6 @@ export const CHAIN_LABELS: Record<Chain, string> = {
   ethereum: "EVM",
   solana: "Solana",
 };
-
-export interface WalletConfig extends AccountRef {
-  id: string;
-  signer: SignerMode;
-  label: string;
-  createdAt: number;
-  /** BIP-32 derivation path (keystone-qr EVM / AirGap Vault). */
-  path?: string;
-  /** Extended public key at the derivation path (keystone-qr EVM / AirGap Vault). */
-  xpub?: string;
-  /** Whether the address matches the address derived from path+xpub. */
-  validated?: boolean;
-}
-
-export const DEFAULT_EVM_PATH = "m/44'/60'/0'/0/0";
-export const DEFAULT_SOLANA_PATH = "m/44'/501'/0'/0'";
-
-export function defaultPath(chain: Chain): string {
-  return chain === "solana" ? DEFAULT_SOLANA_PATH : DEFAULT_EVM_PATH;
-}
-
-export function normalizeEvmPath(value: string | undefined): string {
-  const trimmed = (value ?? "").trim();
-  return trimmed || DEFAULT_EVM_PATH;
-}
-
-export const INITIAL_EVM_CHAIN_ID = "0x1";
-
-export async function readEvmChainId(): Promise<string> {
-  const { evmChainId } = await browser.storage.local.get("evmChainId");
-  if (typeof evmChainId !== "string") {
-    await writeEvmChainId(INITIAL_EVM_CHAIN_ID);
-    return INITIAL_EVM_CHAIN_ID;
-  }
-  return evmChainId;
-}
-
-export async function writeEvmChainId(chainId: string): Promise<void> {
-  await browser.storage.local.set({ evmChainId: chainId });
-}
-
-export const INITIAL_CHAIN_TAB: Chain = "ethereum";
-
-export async function readLastChainTab(): Promise<Chain> {
-  const { lastChainTab } = await browser.storage.local.get("lastChainTab");
-  return lastChainTab === "ethereum" || lastChainTab === "solana"
-    ? lastChainTab
-    : INITIAL_CHAIN_TAB;
-}
-
-export async function writeLastChainTab(chain: Chain): Promise<void> {
-  await browser.storage.local.set({ lastChainTab: chain });
-}
-
-/** Storage key for user-configured RPC endpoints, keyed by chain. */
-export const SOLANA_RPC_KEY = "solana";
-
-export const RpcUrlsSchema = z.record(z.string(), z.string());
-
-export type RpcUrls = z.infer<typeof RpcUrlsSchema>;
-
-export function parseRpcUrls(value: unknown): RpcUrls {
-  const result = RpcUrlsSchema.safeParse(value);
-  return result.success ? result.data : {};
-}
-
-export async function readRpcUrls(): Promise<RpcUrls> {
-  const { rpcUrls } = await browser.storage.local.get("rpcUrls");
-  return parseRpcUrls(rpcUrls);
-}
-
-export async function writeRpcUrls(rpcUrls: RpcUrls): Promise<void> {
-  await browser.storage.local.set({ rpcUrls });
-}
-
-/**
- * Validate a user-provided RPC URL. Returns `null` when empty or a valid
- * `http(s)://` URL, otherwise an error message.
- */
-export function validateRpcUrl(url: string): string | null {
-  const value = url.trim();
-  if (!value) return null;
-  let parsed: URL;
-  try {
-    parsed = new URL(value);
-  } catch {
-    return "Invalid RPC URL";
-  }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    return "RPC URL must use http:// or https://";
-  }
-  return null;
-}
 
 export const WalletConfigSchema = z.object({
   id: z.string().optional(),
@@ -168,44 +71,9 @@ export function parseStoredWallets(value: unknown): WalletConfig[] {
   });
 }
 
-export async function readStoredWallets(): Promise<WalletConfig[]> {
-  const { wallets } = await browser.storage.local.get("wallets");
-  const raw = Array.isArray(wallets) ? wallets : [];
-  const parsed = parseStoredWallets(raw);
-  const needsBackfill = raw.some(
-    (w) => typeof w === "object" && w !== null && typeof (w as { id?: unknown }).id !== "string",
-  );
-  const needsValidation = parsed.some(
-    (w) => w.validated === undefined && validateWallet(w) !== null,
-  );
-  if (needsValidation) {
-    const backfilled = parsed.map((w) => {
-      const result = w.validated !== undefined ? null : validateWallet(w);
-      return result !== null ? { ...w, validated: result } : w;
-    });
-    await writeStoredWallets(backfilled);
-    return backfilled;
-  }
-  if (needsBackfill) await writeStoredWallets(parsed);
-  return parsed;
-}
-
-export async function writeStoredWallets(wallets: WalletConfig[]): Promise<void> {
-  await browser.storage.local.set({ wallets });
-}
-
 export function parseActiveWallets(value: unknown): ActiveWallets {
   const result = ActiveWalletsSchema.safeParse(value);
   return result.success ? result.data : {};
-}
-
-export async function readActiveWallets(): Promise<ActiveWallets> {
-  const { activeWallets } = await browser.storage.local.get("activeWallets");
-  return parseActiveWallets(activeWallets);
-}
-
-export async function writeActiveWallets(activeWallets: ActiveWallets): Promise<void> {
-  await browser.storage.local.set({ activeWallets });
 }
 
 /**
@@ -268,50 +136,6 @@ export function reconcileActiveWallets(
     else delete next[chain];
   }
   return next;
-}
-
-const ConnectedOriginsSchema = z.object({
-  ethereum: z.array(z.string()).optional(),
-  solana: z.array(z.string()).optional(),
-});
-
-export type ConnectedOrigins = z.infer<typeof ConnectedOriginsSchema>;
-
-export function parseConnectedOrigins(value: unknown): ConnectedOrigins {
-  const result = ConnectedOriginsSchema.safeParse(value);
-  return result.success ? result.data : {};
-}
-
-export async function readConnectedOrigins(): Promise<ConnectedOrigins> {
-  const { connectedOrigins } = await browser.storage.local.get("connectedOrigins");
-  return parseConnectedOrigins(connectedOrigins);
-}
-
-export async function writeConnectedOrigins(origins: ConnectedOrigins): Promise<void> {
-  await browser.storage.local.set({ connectedOrigins: origins });
-}
-
-export function isOriginConnected(
-  origins: ConnectedOrigins,
-  chain: Chain,
-  origin: string,
-): boolean {
-  return (origins[chain] ?? []).includes(origin);
-}
-
-export async function markOriginConnected(chain: Chain, origin: string): Promise<void> {
-  if (!origin || origin === "unknown") return;
-  const origins = await readConnectedOrigins();
-  const list = origins[chain] ?? [];
-  if (list.includes(origin)) return;
-  await writeConnectedOrigins({ ...origins, [chain]: [...list, origin] });
-}
-
-export async function unmarkOriginConnected(chain: Chain, origin: string): Promise<void> {
-  if (!origin || origin === "unknown") return;
-  const origins = await readConnectedOrigins();
-  const list = (origins[chain] ?? []).filter((o) => o !== origin);
-  await writeConnectedOrigins({ ...origins, [chain]: list });
 }
 
 export function validateAddress(ref: AccountRef): string | null {

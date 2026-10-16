@@ -12,7 +12,7 @@ beforeAll(async () => {
   mock.module("webextension-polyfill", () => ({
     default: {},
   }));
-  const config = await import("../src/lib/config.ts");
+  const config = await import("../src/webext/storage.ts");
   validateRpcUrl = config.validateRpcUrl;
   parseRpcUrls = config.parseRpcUrls;
 

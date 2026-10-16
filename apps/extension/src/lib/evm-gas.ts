@@ -1,5 +1,5 @@
 import { payloadToTx } from "@slothsign/chain-evm";
-import type { SignPendingRequest } from "./requestStore.ts";
+import type { SignPendingRequest } from "./requests.ts";
 
 export interface EvmGasInfo {
   /** The request is an EVM transaction, so a gas limit is relevant. */

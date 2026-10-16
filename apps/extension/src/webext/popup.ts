@@ -1,5 +1,5 @@
 import browser from "webextension-polyfill";
-import { log } from "./log.ts";
+import { log } from "../lib/log.ts";
 import { setSignerWindow } from "./signerWindows.ts";
 
 /**

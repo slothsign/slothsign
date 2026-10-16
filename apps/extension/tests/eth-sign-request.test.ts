@@ -5,7 +5,7 @@ import { encodeRequest } from "@slothsign/core";
 import { decode as decodeCbor } from "borc";
 import { fingerprintFromXpub } from "@slothsign/keystore";
 import { buildRequestParts, decodeSignature } from "../src/lib/keystone.ts";
-import type { SignPendingRequest } from "../src/lib/requestStore.ts";
+import type { SignPendingRequest } from "../src/lib/requests.ts";
 
 const ADDRESS = "0x1234567890123456789012345678901234567890";
 const XPUB =

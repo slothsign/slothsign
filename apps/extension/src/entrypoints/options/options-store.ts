@@ -1,15 +1,10 @@
 import browser from "webextension-polyfill";
 import { create } from "zustand";
-import {
-  defaultPath,
-  normalizeWallet,
-  validateAddress,
-  walletFormSchema,
-  type ActiveWallets,
-  type SignerMode,
-  type WalletConfig,
-} from "@/lib/config";
-import { getActiveWallets, getWallets, setActiveWallet, setWallets } from "@/lib/actions";
+import { defaultPath } from "@/lib/derivation";
+import type { ActiveWallets } from "@/lib/messages";
+import type { SignerMode, WalletConfig } from "@/lib/types";
+import { normalizeWallet, validateAddress, walletFormSchema } from "@/lib/wallet";
+import { getActiveWallets, getWallets, setActiveWallet, setWallets } from "@/webext/actions";
 
 export function validateField(
   wallets: WalletConfig[],

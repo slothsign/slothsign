@@ -5,18 +5,17 @@ import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { defaultPath } from "@/lib/derivation";
+import type { SignerMode, WalletConfig } from "@/lib/types";
 import {
-  defaultPath,
   isSignableWallet,
   SIGNER_MODE_LABELS,
   validateDerivationPath,
   validateSolanaPath,
   validateXpub,
-  type SignerMode,
-  type WalletConfig,
-} from "@/lib/config";
+} from "@/lib/wallet";
 import { decodeXpub } from "@/lib/keystone";
-import { trezorGetXpub } from "@/lib/actions";
+import { trezorGetXpub } from "@/webext/actions";
 import { shortAddress } from "@/lib/util";
 import { cn } from "@/lib/utils";
 import { ChevronDown, GitBranch, TriangleAlert } from "lucide-react";

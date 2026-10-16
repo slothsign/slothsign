@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { Usb } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cancelRequest, trezorSign } from "@/lib/actions";
-import { defaultPath, type WalletConfig } from "@/lib/config";
-import { evmGasInfo, gasBlockedReason } from "@/lib/evmGas";
-import type { SignPendingRequest } from "@/lib/requestStore";
+import { cancelRequest, trezorSign } from "@/webext/actions";
+import { defaultPath } from "@/lib/derivation";
+import { evmGasInfo, gasBlockedReason } from "@/lib/evm-gas";
+import type { SignPendingRequest } from "@/lib/requests";
+import type { WalletConfig } from "@/lib/types";
 
 export function TrezorView({
   request,

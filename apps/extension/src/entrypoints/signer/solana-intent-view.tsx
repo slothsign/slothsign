@@ -1,6 +1,6 @@
 import { renderSolanaRequest } from "@slothsign/chain-solana";
 import { shortAddress } from "@/lib/util";
-import type { SignPendingRequest } from "@/lib/requestStore";
+import type { SignPendingRequest } from "@/lib/requests";
 import { DataTable } from "@/components/row";
 import { DecodeError } from "./decode-error";
 

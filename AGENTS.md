@@ -26,3 +26,5 @@
 
 - Do not show implementation details to users.
 - Do not modify shadcn components directly.
+- Use kebab-case for new file names (e.g. `evm-gas.ts`, `request-store.ts`).
+- Extension layering: `apps/extension/src/lib/` stays browser-free and unit-testable — no `webextension-polyfill` imports. Modules that talk to `browser.*` (storage, runtime messaging, windows) live in `apps/extension/src/webext/`.

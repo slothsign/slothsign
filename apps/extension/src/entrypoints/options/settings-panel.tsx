@@ -1,5 +1,5 @@
 import { EditableText } from "@/components/editable-text";
-import { SOLANA_RPC_KEY, validateRpcUrl } from "@/lib/config";
+import { SOLANA_RPC_KEY, validateRpcUrl } from "@/webext/storage";
 import { chainIdToHex, EVM_CHAINS } from "@/lib/evmChains";
 import { CheckIcon, Plus, Trash2Icon, XIcon } from "lucide-react";
 import React, { Fragment, useEffect, useState } from "react";

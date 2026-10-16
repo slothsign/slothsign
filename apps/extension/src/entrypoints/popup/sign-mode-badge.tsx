@@ -1,6 +1,7 @@
 import { SignMode } from "@/components/sign-mode-icon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { isSignableWallet, SIGNER_MODE_LABELS, type WalletConfig } from "@/lib/config";
+import type { WalletConfig } from "@/lib/types";
+import { isSignableWallet, SIGNER_MODE_LABELS } from "@/lib/wallet";
 
 export function SignModeBadge({ wallet }: { wallet: WalletConfig }) {
   const warned = wallet.signer !== "watch-only" && !isSignableWallet(wallet);

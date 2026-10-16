@@ -20,36 +20,37 @@ import {
   type Address,
   type Hex,
 } from "viem";
-import { JsonRpcResponseSchema, RuntimeMessageSchema } from "../../lib/messages.ts";
+import {
+  JsonRpcResponseSchema,
+  RuntimeMessageSchema,
+  type ActiveWallets,
+} from "../../lib/messages.ts";
 import { evmSerializable } from "../../lib/keystone.ts";
+import type { EvmGasState, RequestPatch, SignPendingRequest } from "../../lib/requests.ts";
+import type { WalletConfig } from "../../lib/types.ts";
 import {
-  updateRequest,
-  type EvmGasState,
-  type RequestPatch,
-  type SignPendingRequest,
-} from "../../lib/requestStore.ts";
-import {
-  isOriginConnected,
-  markOriginConnected,
   normalizeWallet,
   parseActiveWallets,
   parseStoredWallets,
+  reconcileActiveWallets,
+  resolveActiveWallets,
+  validateWallet,
+} from "../../lib/wallet.ts";
+import { updateRequest } from "../../webext/request-store.ts";
+import {
+  isOriginConnected,
+  markOriginConnected,
   readActiveWallets,
   readConnectedOrigins,
   readEvmChainId,
   readRpcUrls,
   readStoredWallets,
-  reconcileActiveWallets,
-  resolveActiveWallets,
+  SOLANA_RPC_KEY,
   unmarkOriginConnected,
-  validateWallet,
   writeActiveWallets,
   writeEvmChainId,
   writeStoredWallets,
-  SOLANA_RPC_KEY,
-  type ActiveWallets,
-  type WalletConfig,
-} from "../../lib/config.ts";
+} from "../../webext/storage.ts";
 import { chainIdToHex, getEvmChain, getEvmRpcUrl } from "../../lib/evmChains.ts";
 import { extractOrigin } from "../../lib/origin.ts";
 import {

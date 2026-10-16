@@ -1,4 +1,4 @@
-import type { WalletConfig } from "@/lib/config";
+import type { WalletConfig } from "@/lib/types";
 
 export function pathRank(path: string | undefined): number[] {
   return (path ?? "")

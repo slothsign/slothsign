@@ -5,7 +5,7 @@ import { useShallow } from "zustand/react/shallow";
 import browser from "webextension-polyfill";
 import { RequestDetail } from "./request-detail.tsx";
 import { useSignerStore } from "./signer-store.ts";
-import { notifySignerClosed } from "@/lib/actions.ts";
+import { notifySignerClosed } from "@/webext/actions.ts";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import slothSvg from "../../assets/sloth.svg";
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { evmGasInfo, gasBlockedReason, gasReady } from "../src/lib/evmGas.ts";
-import type { EvmGasState, SignPendingRequest } from "../src/lib/requestStore.ts";
+import { evmGasInfo, gasBlockedReason, gasReady } from "../src/lib/evm-gas.ts";
+import type { EvmGasState, SignPendingRequest } from "../src/lib/requests.ts";
 
 const ADDRESS = "0x1234567890123456789012345678901234567890";
 
@@ -53,9 +53,7 @@ describe("evmGasInfo", () => {
   });
 
   test("marks an estimated value as estimated", () => {
-    const info = evmGasInfo(
-      evmTx({ gas: "0x5208" }, { source: "estimated", fetching: false }),
-    );
+    const info = evmGasInfo(evmTx({ gas: "0x5208" }, { source: "estimated", fetching: false }));
     expect(info.estimated).toBe(true);
     expect(gasReady(info)).toBe(true);
   });

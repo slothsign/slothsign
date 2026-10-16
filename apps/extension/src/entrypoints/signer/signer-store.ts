@@ -1,8 +1,8 @@
 import browser from "webextension-polyfill";
 import { create } from "zustand";
-import { getPendingRequests, getWallets } from "@/lib/actions";
-import type { WalletConfig } from "@/lib/config";
-import type { PendingRequest } from "@/lib/requestStore";
+import { getPendingRequests, getWallets } from "@/webext/actions";
+import type { PendingRequest } from "@/lib/requests";
+import type { WalletConfig } from "@/lib/types";
 
 interface SignerState {
   wallets: WalletConfig[];

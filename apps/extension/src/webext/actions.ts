@@ -1,8 +1,8 @@
 import browser from "webextension-polyfill";
 import type { Chain } from "@slothsign/core";
-import type { ActiveWallets, WalletConfig } from "./config.ts";
-import type { RuntimeMessage } from "./messages.ts";
-import type { PendingRequest } from "./requestStore.ts";
+import type { ActiveWallets, RuntimeMessage } from "../lib/messages.ts";
+import type { PendingRequest } from "../lib/requests.ts";
+import type { WalletConfig } from "../lib/types.ts";
 
 async function send<T>(message: RuntimeMessage): Promise<T> {
   return browser.runtime.sendMessage<RuntimeMessage, T>(message);

@@ -2,8 +2,9 @@ import TrezorConnect from "@trezor/connect-webextension";
 import { payloadToMessage, payloadToTx, payloadToTypedData } from "@slothsign/chain-evm";
 import { base64ToBytes, bytesToBase64 } from "@slothsign/chain-solana";
 import { bytesToHex, hexToBytes } from "viem";
-import { defaultPath, type WalletConfig } from "../../lib/config.ts";
-import type { SignPendingRequest } from "../../lib/requestStore.ts";
+import { defaultPath } from "../../lib/derivation.ts";
+import type { SignPendingRequest } from "../../lib/requests.ts";
+import type { WalletConfig } from "../../lib/types.ts";
 
 const TREZOR_MANIFEST = {
   email: "hello@slothsign.app",

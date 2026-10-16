@@ -5,7 +5,7 @@ import {
   type SolanaMethod,
 } from "@slothsign/chain-solana";
 import type { SignerRequest } from "@slothsign/core";
-import type { PendingRequest } from "../../lib/requestStore.ts";
+import type { PendingRequest } from "../../lib/requests.ts";
 
 export type DispatchResult = { ok: true; request: PendingRequest } | { ok: false; error: string };
 

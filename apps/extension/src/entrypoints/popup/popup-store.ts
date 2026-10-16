@@ -1,8 +1,14 @@
 import browser from "webextension-polyfill";
 import { create } from "zustand";
 import type { Chain } from "@slothsign/core";
-import { getActiveWallets, getCurrentChain, getWallets, isActiveTabConnected } from "@/lib/actions";
-import type { ActiveWallets, WalletConfig } from "@/lib/config";
+import {
+  getActiveWallets,
+  getCurrentChain,
+  getWallets,
+  isActiveTabConnected,
+} from "@/webext/actions";
+import type { ActiveWallets } from "@/lib/messages";
+import type { WalletConfig } from "@/lib/types";
 
 export interface ChainInfo {
   chainId: string;

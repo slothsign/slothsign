@@ -1,14 +1,13 @@
 import { parse } from "csv-parse/sync";
 import { nanoid } from "nanoid";
+import type { SignerMode, WalletConfig } from "./types.ts";
 import {
   SIGNER_MODE_LABELS,
   validateAddress,
   validateDerivationPath,
   validateSolanaPath,
   validateXpub,
-  type SignerMode,
-  type WalletConfig,
-} from "./config";
+} from "./wallet.ts";
 
 const SIGNER_VALUES = Object.keys(SIGNER_MODE_LABELS) as SignerMode[];
 

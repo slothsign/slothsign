@@ -1,7 +1,8 @@
 import { Eye, FingerprintPattern, QrCode, TriangleAlert, Usb, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SelectValue } from "@/components/ui/select";
-import { SIGNER_MODE_LABELS, type SignerMode } from "@/lib/config";
+import type { SignerMode } from "@/lib/types";
+import { SIGNER_MODE_LABELS } from "@/lib/wallet";
 
 const SIGNER_ICONS: Record<SignerMode, LucideIcon> = {
   "watch-only": Eye,

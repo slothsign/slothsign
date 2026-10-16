@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cancelRequest, confirmConnect } from "@/lib/actions";
-import { CHAIN_LABELS, type WalletConfig } from "@/lib/config";
-import type { ConnectPendingRequest } from "@/lib/requestStore";
+import { cancelRequest, confirmConnect } from "@/webext/actions";
+import { CHAIN_LABELS } from "@/lib/wallet";
+import type { ConnectPendingRequest } from "@/lib/requests";
+import type { WalletConfig } from "@/lib/types";
 
 export function ConnectApprovalView({
   request,

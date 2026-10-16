@@ -1,6 +1,7 @@
 import { ActiveWalletIcon } from "@/components/active-wallet-icon";
 import { CopyButton } from "@/components/ui/copy-button";
-import { validateDerivationPath, validateXpub, type WalletConfig } from "@/lib/config";
+import type { WalletConfig } from "@/lib/types";
+import { validateDerivationPath, validateXpub } from "@/lib/wallet";
 import { shortAddress } from "@/lib/util";
 import { SignModeBadge } from "./sign-mode-badge";
 

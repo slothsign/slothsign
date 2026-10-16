@@ -6,16 +6,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { ScanQrDialog } from "@/components/scan-qr-dialog";
 import { SignMode, SignerSelectValue } from "@/components/sign-mode-icon";
+import type { SignerMode } from "@/lib/types";
 import {
   SIGNER_MODE_DESCRIPTIONS,
   SIGNER_MODE_LABELS,
   validateDerivationPath,
   validateSolanaPath,
   validateXpub,
-  type SignerMode,
-} from "@/lib/config";
+} from "@/lib/wallet";
 import { decodeAirGapKey, walletPathFromAirGap } from "@/lib/keystone";
-import { trezorGetXpub } from "@/lib/actions";
+import { trezorGetXpub } from "@/webext/actions";
 import { useDebounce } from "@/lib/use-debounce";
 import { useShallow } from "zustand/react/shallow";
 import { GitBranch, RefreshCw, ScanLine, Usb } from "lucide-react";

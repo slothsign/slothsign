@@ -1,5 +1,5 @@
-import type { WalletConfig } from "../../src/lib/config.ts";
-import type { SignPendingRequest } from "../../src/lib/requestStore.ts";
+import type { WalletConfig } from "../../src/lib/types.ts";
+import type { SignPendingRequest } from "../../src/lib/requests.ts";
 
 export const ADDRESS = "0x1b3984868782b69d1aae816f437a13b4b674cb66";
 

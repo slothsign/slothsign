@@ -1,6 +1,6 @@
 import browser from "webextension-polyfill";
 import { create } from "zustand";
-import { readRpcUrls, writeRpcUrls, type RpcUrls } from "@/lib/config";
+import { readRpcUrls, writeRpcUrls, type RpcUrls } from "@/webext/storage";
 
 interface SettingsState {
   open: boolean;

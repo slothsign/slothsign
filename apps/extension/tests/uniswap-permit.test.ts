@@ -3,7 +3,7 @@ import { URDecoder } from "@ngraveio/bc-ur";
 import { decodeToDataItem } from "@keystonehq/bc-ur-registry";
 import { EthSignRequest } from "@keystonehq/bc-ur-registry-eth";
 import { buildRequestParts } from "../src/lib/keystone.ts";
-import { normalizeEvmPath } from "../src/lib/config.ts";
+import { normalizeEvmPath } from "../src/lib/derivation.ts";
 import { fingerprintFromXpub } from "@slothsign/keystore";
 import { ADDRESS, CAPTURED_PARTS, buildRequest, WALLET, XPUB } from "./fixtures/uniswap-request.ts";
 

@@ -1,8 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { setActiveWallet } from "@/lib/actions";
-import type { ActiveWallets, WalletConfig } from "@/lib/config";
+import { setActiveWallet } from "@/webext/actions";
+import type { ActiveWallets } from "@/lib/messages";
+import type { WalletConfig } from "@/lib/types";
 import { groupByXpub } from "@/lib/wallet-groups";
 import type { Chain } from "@slothsign/core";
 import { Power } from "lucide-react";

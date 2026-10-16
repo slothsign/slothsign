@@ -10,7 +10,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EditableText } from "@/components/editable-text";
-import { validateDerivationPath, type SignerMode, type WalletConfig } from "@/lib/config";
+import type { SignerMode, WalletConfig } from "@/lib/types";
+import { validateDerivationPath } from "@/lib/wallet";
 import { useOptionsStore } from "./options-store";
 import { Trash2, Undo2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
