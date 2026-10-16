@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import {
   addressFromPrivateKey,
+  assertSignableEvmTransaction,
   payloadToMessage,
   payloadToTx,
   payloadToTypedData,
@@ -132,6 +133,7 @@ async function signRequest(
     switch (request.type) {
       case "transaction": {
         const tx = payloadToTx(request.payload);
+        assertSignableEvmTransaction(tx);
         return signEvmSignature(privateKey, tx, request.chainId);
       }
       case "message": {

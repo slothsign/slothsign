@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "bun run src/index.ts",
     "build": "bun run scripts/build.ts",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "test": "bun test"
   },
   "dependencies": {
     "@slothsign/chain-evm": "workspace:*",
