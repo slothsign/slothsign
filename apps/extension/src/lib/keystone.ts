@@ -218,6 +218,7 @@ function encodeParts(ur: UR): string[] {
  */
 export function decodeSignature(text: string, chain: "ethereum" | "solana"): unknown {
   const value = text.trim();
+  if (!value.toLowerCase().startsWith("ur:")) return value;
   const decoder = new URDecoder();
   decoder.receivePart(value.toLowerCase());
   if (!decoder.isComplete() || !decoder.isSuccess()) return value;
