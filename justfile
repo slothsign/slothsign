@@ -13,7 +13,7 @@ build-extension:
 
 # Package the extension into a zip
 zip-extension:
-    cd apps/extension && bun run zip
+    cd apps/extension && rm -f slothsign.zip && bun run zip
 
 # ---- CLI ----
 # Build the CLI binaries and write bin/version.txt
