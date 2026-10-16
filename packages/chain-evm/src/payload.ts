@@ -11,6 +11,7 @@ export const EvmTransactionPayloadSchema = z
     data: z.string().optional(),
     nonce: z.string().optional(),
     gas: z.string().optional(),
+    gasLimit: z.string().optional(),
     gasPrice: z.string().optional(),
     maxFeePerGas: z.string().optional(),
     maxPriorityFeePerGas: z.string().optional(),

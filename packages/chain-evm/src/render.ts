@@ -45,7 +45,7 @@ export function renderEvmRequest(request: SignerRequest): EvmRenderResult {
             to: tx.to,
             value: tx.value,
             data: tx.data,
-            gas: tx.gas,
+            gas: tx.gas ?? tx.gasLimit,
             nonce: tx.nonce,
             gasPrice: tx.gasPrice,
             maxFeePerGas: tx.maxFeePerGas,

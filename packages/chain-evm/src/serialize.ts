@@ -10,7 +10,7 @@ export function evmSerializable(
   const base = {
     chainId: Number(BigInt(chainId)),
     nonce: numField(tx.nonce),
-    gas: numField(tx.gas),
+    gas: numField(tx.gas ?? tx.gasLimit),
     to: hexField(tx.to),
     value: numField(tx.value) ?? 0n,
     data: hexField(tx.data, "0x0"),
@@ -41,6 +41,27 @@ export function isTypedTransaction(tx: EvmTransactionPayload): boolean {
     return false;
   }
   return tx.maxFeePerGas !== undefined || tx.maxPriorityFeePerGas !== undefined;
+}
+
+/**
+ * Reject incomplete transactions before signing or broadcasting. The offline
+ * signer cannot fill missing fields, so a missing gas limit, nonce, or fee
+ * set would produce a valid signature over an unbroadcastable transaction.
+ * `to` stays optional (contract creation).
+ */
+export function assertSignableEvmTransaction(tx: EvmTransactionPayload): void {
+  const missing: string[] = [];
+  if (!tx.nonce) missing.push("nonce");
+  if (!tx.gas && !tx.gasLimit) missing.push("gas");
+  if (isTypedTransaction(tx)) {
+    if (!tx.maxFeePerGas) missing.push("maxFeePerGas");
+    if (!tx.maxPriorityFeePerGas) missing.push("maxPriorityFeePerGas");
+  } else if (!tx.gasPrice) {
+    missing.push("gasPrice");
+  }
+  if (missing.length > 0) {
+    throw new Error(`Incomplete EVM transaction: missing ${missing.join(", ")}`);
+  }
 }
 
 export function numField(value: string | undefined): bigint | undefined {

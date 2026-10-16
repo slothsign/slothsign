@@ -11,7 +11,7 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { type EvmTransactionPayload } from "./payload.ts";
-import { evmSerializable } from "./serialize.ts";
+import { assertSignableEvmTransaction, evmSerializable } from "./serialize.ts";
 
 export type PrivateKey = `0x${string}`;
 
@@ -39,6 +39,7 @@ export async function signEvmSignature(
   chainId: string,
 ): Promise<Hash> {
   const account = privateKeyToAccount(privateKey);
+  assertSignableEvmTransaction(payload);
   const serializable = evmSerializable(payload, chainId);
   const hash = keccak256(serializeTransaction(serializable));
   return account.sign({ hash });

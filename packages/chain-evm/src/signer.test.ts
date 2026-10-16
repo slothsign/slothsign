@@ -38,6 +38,7 @@ describe("signEvmSignature", () => {
       value: "1000000",
       gas: "21000",
       nonce: "0",
+      gasPrice: "0x3b9aca00",
     };
     const signature = await signEvmSignature(privateKey, tx, "0x1");
     expect(signature).toMatch(/^0x[0-9a-f]{130}$/);
@@ -45,6 +46,18 @@ describe("signEvmSignature", () => {
     const hash = keccak256(serializeTransaction(serializable));
     const recovered = await recoverAddress({ hash, signature });
     expect(recovered.toLowerCase()).toBe(ADDRESS.toLowerCase());
+  });
+
+  test("rejects an incomplete transaction (missing gas)", async () => {
+    const tx = {
+      from: ADDRESS,
+      to: "0x8ba1f109551bD432803012645Ac136ddd64DBA72",
+      value: "1000000",
+      nonce: "0",
+      maxFeePerGas: "0x3b9aca00",
+      maxPriorityFeePerGas: "0x3b9aca00",
+    };
+    await expect(signEvmSignature(privateKey, tx, "0x1")).rejects.toThrow("missing gas");
   });
 });
 

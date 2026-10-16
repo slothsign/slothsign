@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { serializeTransaction } from "viem";
-import { evmSerializable, isTypedTransaction, numField, hexField } from "./serialize.ts";
+import {
+  assertSignableEvmTransaction,
+  evmSerializable,
+  isTypedTransaction,
+  numField,
+  hexField,
+} from "./serialize.ts";
 
 describe("numField", () => {
   test("parses 0x-prefixed hex strings", () => {
@@ -78,5 +84,82 @@ describe("evmSerializable", () => {
   test("chainId overrides are applied", () => {
     const serializable = evmSerializable({ from: "0x0" }, "8453");
     expect(serializable.chainId).toBe(8453);
+  });
+
+  test("falls back to the gasLimit alias", () => {
+    const serializable = evmSerializable(
+      { from: "0x0", to: "0x0", nonce: "0x0", gasLimit: "0x5208", gasPrice: "0x1" },
+      "0x1",
+    );
+    expect(serializable.gas).toBe(21000n);
+  });
+});
+
+describe("assertSignableEvmTransaction", () => {
+  const legacy = {
+    from: "0x0",
+    to: "0x0",
+    nonce: "0x0",
+    gas: "0x5208",
+    gasPrice: "0x1",
+  };
+
+  test("accepts a complete legacy transaction", () => {
+    expect(() => assertSignableEvmTransaction(legacy)).not.toThrow();
+  });
+
+  test("accepts the gasLimit alias", () => {
+    expect(() =>
+      assertSignableEvmTransaction({ ...legacy, gas: undefined, gasLimit: "0x5208" }),
+    ).not.toThrow();
+  });
+
+  test("accepts contract creation (no to)", () => {
+    expect(() =>
+      assertSignableEvmTransaction({
+        from: "0x0",
+        nonce: "0x0",
+        gas: "0x5208",
+        gasPrice: "0x1",
+      }),
+    ).not.toThrow();
+  });
+
+  test("rejects a missing gas limit", () => {
+    expect(() => assertSignableEvmTransaction({ ...legacy, gas: undefined })).toThrow(
+      "missing gas",
+    );
+  });
+
+  test("rejects a missing nonce", () => {
+    expect(() => assertSignableEvmTransaction({ ...legacy, nonce: undefined })).toThrow(
+      "missing nonce",
+    );
+  });
+
+  test("rejects a legacy transaction without a gas price", () => {
+    expect(() => assertSignableEvmTransaction({ ...legacy, gasPrice: undefined })).toThrow(
+      "missing gasPrice",
+    );
+  });
+
+  test("requires both EIP-1559 fee fields", () => {
+    const typed = { from: "0x0", nonce: "0x0", gas: "0x5208", maxFeePerGas: "0x100" };
+    expect(() => assertSignableEvmTransaction(typed)).toThrow("missing maxPriorityFeePerGas");
+    expect(() =>
+      assertSignableEvmTransaction({ ...typed, maxPriorityFeePerGas: "0x1" }),
+    ).not.toThrow();
+  });
+
+  test("does not require gasPrice for an EIP-1559 transaction", () => {
+    expect(() =>
+      assertSignableEvmTransaction({
+        from: "0x0",
+        nonce: "0x0",
+        gas: "0x5208",
+        maxFeePerGas: "0x100",
+        maxPriorityFeePerGas: "0x1",
+      }),
+    ).not.toThrow();
   });
 });

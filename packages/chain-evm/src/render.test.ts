@@ -2,6 +2,17 @@ import { describe, expect, test } from "bun:test";
 import { renderEvmRequest } from "./render.ts";
 import type { SignerRequest } from "@slothsign/core";
 
+function transactionRequest(payload: Record<string, unknown>): SignerRequest {
+  return {
+    version: 1,
+    chain: "ethereum",
+    chainId: "1",
+    address: "0x0000000000000000000000000000000000000000",
+    type: "transaction",
+    payload: JSON.stringify({ from: "0x0000000000000000000000000000000000000000", ...payload }),
+  };
+}
+
 function messageRequest(message: string): SignerRequest {
   return {
     version: 1,
@@ -36,5 +47,17 @@ describe("renderEvmRequest message decoding", () => {
     const result = renderEvmRequest(messageRequest("0xdeadbeef"));
     expect(result.known).toBe(true);
     expect(result.intent?.message).not.toBe("0xdeadbeef");
+  });
+});
+
+describe("renderEvmRequest transaction gas", () => {
+  test("surfaces the gas limit", () => {
+    const result = renderEvmRequest(transactionRequest({ gas: "0x5208" }));
+    expect(result.intent?.gas).toBe("0x5208");
+  });
+
+  test("surfaces the gasLimit alias", () => {
+    const result = renderEvmRequest(transactionRequest({ gasLimit: "0x5208" }));
+    expect(result.intent?.gas).toBe("0x5208");
   });
 });
