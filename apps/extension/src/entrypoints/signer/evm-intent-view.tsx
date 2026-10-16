@@ -1,25 +1,22 @@
 import type { ReactNode } from "react";
 import { renderEvmRequest } from "@slothsign/chain-evm";
 import { RefreshCw } from "lucide-react";
-import { formatGwei, hexToBigInt, type Hex } from "viem";
+import { hexToBigInt, type Hex } from "viem";
 import { refreshGas } from "@/webext/actions";
-import { evmGasInfo, type EvmGasInfo } from "@/lib/evm-gas";
+import { getEvmChain } from "@/lib/evmChains";
+import {
+  evmGasInfo,
+  formatGasFee,
+  formatGasLimit,
+  formatGasPrice,
+  type EvmGasInfo,
+} from "@/lib/evm-gas";
 import { shortAddress } from "@/lib/util";
 import type { SignPendingRequest } from "@/lib/requests";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable, type TableItem } from "@/components/row";
 import { DecodeError } from "./decode-error";
-
-function formatGasFee(intent: {
-  gasPrice?: string;
-  maxFeePerGas?: string;
-  maxPriorityFeePerGas?: string;
-}): string | undefined {
-  const fee = intent.maxFeePerGas ?? intent.gasPrice;
-  if (!fee) return undefined;
-  return `${formatGwei(hexToBigInt(fee as Hex))} gwei`;
-}
 
 function gasValue(gas: EvmGasInfo): ReactNode {
   if (gas.value) return <span className="font-mono">{formatGasLimit(gas.value)}</span>;
@@ -31,17 +28,8 @@ function gasValue(gas: EvmGasInfo): ReactNode {
   );
 }
 
-function formatGasLimit(value: string): string {
-  try {
-    return hexToBigInt(value as Hex).toString();
-  } catch {
-    return value;
-  }
-}
-
 /** The always-present Gas row: value, provenance badge, and a refresh button. */
-function GasLimit({ request }: { request: SignPendingRequest }) {
-  const gas = evmGasInfo(request);
+function GasLimit({ request, gas }: { request: SignPendingRequest; gas: EvmGasInfo }) {
   return (
     <div className="flex items-center gap-2">
       {gasValue(gas)}
@@ -82,7 +70,13 @@ export function EvmIntentView({ request }: { request: SignPendingRequest }) {
   }
   const intent = rendered.intent;
   if (intent.type === "transaction") {
-    const gasFee = formatGasFee(intent);
+    const gas = evmGasInfo(request);
+    const nativeCurrency = getEvmChain(request.signerRequest?.chainId ?? "")?.nativeCurrency ?? {
+      symbol: "ETH",
+      decimals: 18,
+    };
+    const gasPrice = formatGasPrice(intent);
+    const fee = formatGasFee(intent, nativeCurrency);
     return (
       <DataTable
         items={[
@@ -92,8 +86,14 @@ export function EvmIntentView({ request }: { request: SignPendingRequest }) {
           ...(intent.nonce
             ? [{ label: "Nonce", value: String(hexToBigInt(intent.nonce as Hex)) }]
             : []),
-          { label: "Gas", value: <GasLimit request={request} /> },
-          ...(gasFee ? [{ label: "Gas fee", value: gasFee }] : []),
+          { label: "Gas", value: <GasLimit request={request} gas={gas} /> },
+          ...(gasPrice ? [{ label: "Gas price", value: gasPrice }] : []),
+          {
+            label: "Gas fee",
+            value:
+              fee ??
+              (gas.fetching ? <span className="text-muted-foreground">Estimating…</span> : "—"),
+          },
           ...(intent.data
             ? [
                 {

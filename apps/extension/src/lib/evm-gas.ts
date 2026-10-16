@@ -1,4 +1,5 @@
 import { payloadToTx } from "@slothsign/chain-evm";
+import { formatGwei, formatUnits, hexToBigInt, isHex, type Hex } from "viem";
 import type { EvmGasState, SignPendingRequest } from "./requests.ts";
 
 export interface EvmGasInfo {
@@ -46,6 +47,45 @@ export function gasBlockedReason(info: EvmGasInfo): string | undefined {
   if (gasReady(info)) return undefined;
   if (info.fetching) return "Estimating gas…";
   return info.error ? `Gas estimate failed: ${info.error}` : "Gas limit unavailable";
+}
+
+/**
+ * Parse a 0x-hex amount into a bigint. `hexToBigInt` alone is not enough: it
+ * falls back to `BigInt(value)`, so a bare `"21000"` would be read as decimal.
+ */
+export function parseAmount(value: string | undefined): bigint | undefined {
+  if (!value || !isHex(value)) return undefined;
+  try {
+    return hexToBigInt(value as Hex);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Render a gas limit as a plain decimal string. */
+export function formatGasLimit(value: string): string {
+  return parseAmount(value)?.toString() ?? value;
+}
+
+/** Per-gas price in gwei, as sent by the dApp. */
+export function formatGasPrice(intent: {
+  gasPrice?: string;
+  maxFeePerGas?: string;
+}): string | undefined {
+  const price = parseAmount(intent.maxFeePerGas ?? intent.gasPrice);
+  if (price === undefined) return undefined;
+  return `${formatGwei(price)} gwei`;
+}
+
+/** Total transaction fee (gas limit × price) in the chain's native currency. */
+export function formatGasFee(
+  intent: { gas?: string; gasPrice?: string; maxFeePerGas?: string },
+  nativeCurrency: { symbol: string; decimals: number },
+): string | undefined {
+  const limit = parseAmount(intent.gas);
+  const price = parseAmount(intent.maxFeePerGas ?? intent.gasPrice);
+  if (limit === undefined || price === undefined) return undefined;
+  return `${formatUnits(limit * price, nativeCurrency.decimals)} ${nativeCurrency.symbol}`;
 }
 
 /** The effective gas limit on a raw eth_sendTransaction params object. */
