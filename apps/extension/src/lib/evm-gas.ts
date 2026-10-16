@@ -1,5 +1,5 @@
 import { payloadToTx } from "@slothsign/chain-evm";
-import type { SignPendingRequest } from "./requests.ts";
+import type { EvmGasState, SignPendingRequest } from "./requests.ts";
 
 export interface EvmGasInfo {
   /** The request is an EVM transaction, so a gas limit is relevant. */
@@ -46,4 +46,24 @@ export function gasBlockedReason(info: EvmGasInfo): string | undefined {
   if (gasReady(info)) return undefined;
   if (info.fetching) return "Estimating gas…";
   return info.error ? `Gas estimate failed: ${info.error}` : "Gas limit unavailable";
+}
+
+/** The effective gas limit on a raw eth_sendTransaction params object. */
+export function gasLimitOf(tx: Record<string, unknown>): string | undefined {
+  const gas = typeof tx.gas === "string" && tx.gas ? tx.gas : undefined;
+  const limit = typeof tx.gasLimit === "string" && tx.gasLimit ? tx.gasLimit : undefined;
+  return gas ?? limit;
+}
+
+/**
+ * Gas state for a freshly received EVM transaction: dApp-supplied, or flagged
+ * for estimation. The value is only written into the payload once an estimate
+ * succeeds, so a dApp-supplied limit is never overwritten automatically.
+ */
+export function evmGasStateFor(params: unknown[]): EvmGasState {
+  const tx = params[0];
+  if (typeof tx === "object" && tx !== null && gasLimitOf(tx as Record<string, unknown>)) {
+    return { source: "dapp" };
+  }
+  return { source: "estimated", fetching: true };
 }
