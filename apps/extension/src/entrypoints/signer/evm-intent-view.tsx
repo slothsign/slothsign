@@ -1,7 +1,13 @@
+import type { ReactNode } from "react";
 import { renderEvmRequest } from "@slothsign/chain-evm";
+import { RefreshCw } from "lucide-react";
 import { formatGwei, hexToBigInt, type Hex } from "viem";
+import { refreshGas } from "@/lib/actions";
+import { evmGasInfo, type EvmGasInfo } from "@/lib/evmGas";
 import { shortAddress } from "@/lib/util";
 import type { SignPendingRequest } from "@/lib/requestStore";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { DataTable, type TableItem } from "@/components/row";
 import { DecodeError } from "./decode-error";
 
@@ -13,6 +19,46 @@ function formatGasFee(intent: {
   const fee = intent.maxFeePerGas ?? intent.gasPrice;
   if (!fee) return undefined;
   return `${formatGwei(hexToBigInt(fee as Hex))} gwei`;
+}
+
+function gasValue(gas: EvmGasInfo): ReactNode {
+  if (gas.value) return <span className="font-mono">{formatGasLimit(gas.value)}</span>;
+  if (gas.fetching) return <span className="text-muted-foreground">Estimating…</span>;
+  return (
+    <span className="text-destructive" title={gas.error}>
+      unavailable
+    </span>
+  );
+}
+
+function formatGasLimit(value: string): string {
+  try {
+    return hexToBigInt(value as Hex).toString();
+  } catch {
+    return value;
+  }
+}
+
+/** The always-present Gas row: value, provenance badge, and a refresh button. */
+function GasLimit({ request }: { request: SignPendingRequest }) {
+  const gas = evmGasInfo(request);
+  return (
+    <div className="flex items-center gap-2">
+      {gasValue(gas)}
+      {gas.estimated ? <Badge variant="secondary">estimated</Badge> : null}
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        aria-label="Refresh gas estimate"
+        title="Refresh gas estimate"
+        disabled={gas.fetching}
+        onClick={() => void refreshGas(request.id)}
+      >
+        <RefreshCw className={gas.fetching ? "animate-spin" : undefined} />
+      </Button>
+    </div>
+  );
 }
 
 export function EvmIntentView({ request }: { request: SignPendingRequest }) {
@@ -46,7 +92,7 @@ export function EvmIntentView({ request }: { request: SignPendingRequest }) {
           ...(intent.nonce
             ? [{ label: "Nonce", value: String(hexToBigInt(intent.nonce as Hex)) }]
             : []),
-          ...(intent.gas ? [{ label: "Gas", value: intent.gas }] : []),
+          { label: "Gas", value: <GasLimit request={request} /> },
           ...(gasFee ? [{ label: "Gas fee", value: gasFee }] : []),
           ...(intent.data
             ? [

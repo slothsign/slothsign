@@ -13,12 +13,16 @@ export function SignatureInput({
   onSubmit,
   error,
   chain,
+  disabled,
+  disabledHint,
 }: {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
   error?: string;
   chain: "ethereum" | "solana";
+  disabled?: boolean;
+  disabledHint?: string;
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [scanError, setScanError] = useState<string>();
@@ -73,7 +77,10 @@ export function SignatureInput({
         />
       </div>
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
-      <Button type="submit" className="w-full" disabled={!value.trim()}>
+      {disabled && disabledHint ? (
+        <p className="text-xs text-muted-foreground">{disabledHint}</p>
+      ) : null}
+      <Button type="submit" className="w-full" disabled={!value.trim() || disabled}>
         Submit signature
       </Button>
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

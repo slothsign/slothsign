@@ -3,6 +3,7 @@ import { Usb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cancelRequest, trezorSign } from "@/lib/actions";
 import { defaultPath, type WalletConfig } from "@/lib/config";
+import { evmGasInfo, gasBlockedReason } from "@/lib/evmGas";
 import type { SignPendingRequest } from "@/lib/requestStore";
 
 export function TrezorView({
@@ -25,6 +26,7 @@ export function TrezorView({
     request.chain === "solana" && request.signerRequest?.type !== "transaction"
       ? "Trezor cannot sign Solana messages. Ask the dApp for a transaction, or use a different signer."
       : undefined;
+  const gasBlocked = gasBlockedReason(evmGasInfo(request));
 
   if (unsupported) {
     return (
@@ -63,8 +65,18 @@ export function TrezorView({
           {rawJson}
         </pre>
       </details>
+      {gasBlocked ? (
+        <div className="rounded-md border border-border px-3 py-2 text-sm text-muted-foreground">
+          {gasBlocked}
+        </div>
+      ) : null}
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
-      <Button size="lg" className="w-full" disabled={pending} onClick={() => void sign()}>
+      <Button
+        size="lg"
+        className="w-full"
+        disabled={pending || gasBlocked !== undefined}
+        onClick={() => void sign()}
+      >
         <Usb className="size-4" />
         {pending ? "Waiting for Trezor…" : "Sign with Trezor"}
       </Button>

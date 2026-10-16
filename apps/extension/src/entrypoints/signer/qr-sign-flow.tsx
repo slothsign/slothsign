@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { CircleHelp } from "lucide-react";
 import { decodeResult, encodeResult, REQUEST_PREFIX, RESULT_PREFIX } from "@slothsign/core";
 import { submitSignature } from "@/lib/actions";
+import { evmGasInfo, gasBlockedReason } from "@/lib/evmGas";
 import { SIGNER_MODE_SCANNER_HINT, type WalletConfig } from "@/lib/config";
 import { buildRequestParts } from "@/lib/keystone";
 import type { SignPendingRequest } from "@/lib/requestStore";
@@ -25,6 +26,7 @@ export function QrSignFlow({
   const [error, setError] = useState<string>();
 
   const showQr = request.signer !== "address-qr";
+  const gasBlocked = gasBlockedReason(evmGasInfo(request));
 
   const qr = useMemo(() => {
     if (!showQr) {
@@ -126,7 +128,11 @@ export function QrSignFlow({
         )}
       </section>
 
-      {showQr ? (
+      {gasBlocked ? (
+        <div className="rounded-md border border-border px-3 py-2 text-sm text-muted-foreground">
+          {gasBlocked}
+        </div>
+      ) : showQr ? (
         <Tabs
           value={dataTab}
           onValueChange={(value) => {
@@ -157,6 +163,8 @@ export function QrSignFlow({
         onSubmit={() => void submit()}
         error={error}
         chain={request.chain}
+        disabled={gasBlocked !== undefined}
+        disabledHint={gasBlocked}
       />
     </div>
   );
