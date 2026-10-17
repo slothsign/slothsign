@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const BINARY = "sloth";
-const UPDATE_REPO = "slothsign/slothsign";
 const TARGETS = ["bun-darwin-arm64", "bun-darwin-x64", "bun-linux-arm64", "bun-linux-x64"] as const;
 
 const now = new Date();
@@ -12,7 +11,6 @@ const VERSION_INFO = `${now.getUTCFullYear() - 2000}.${now.getUTCMonth() + 1}.${
 
 const defines = {
   "process.env.SLOTH_VERSION_INFO": JSON.stringify(VERSION_INFO),
-  "process.env.SLOTH_UPDATE_REPO": JSON.stringify(UPDATE_REPO),
 };
 
 mkdirSync("bin", { recursive: true });

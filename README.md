@@ -44,10 +44,10 @@ Or install it as a mise tool:
 mise use github:slothsign/slothsign
 ```
 
-Once installed, keep it current with:
+To update, re-run the install script above, or with mise:
 
 ```sh
-sloth update
+mise upgrade github:slothsign/slothsign
 ```
 
 ## License

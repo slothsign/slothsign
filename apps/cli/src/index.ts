@@ -27,7 +27,6 @@ import { Command } from "commander";
 import { createInterface } from "readline/promises";
 import { stdin, stdout } from "process";
 import { getBackend, supportedModes } from "./keystore/index.ts";
-import { runUpdate } from "./update.ts";
 import {
   editWallets,
   editWalletsFromStdin,
@@ -39,7 +38,6 @@ import {
 } from "./wallets.ts";
 
 const VERSION_INFO = process.env.SLOTH_VERSION_INFO ?? "dev";
-const REPO = process.env.SLOTH_UPDATE_REPO ?? "";
 
 const supported = supportedModes();
 
@@ -244,10 +242,6 @@ async function readStdin(): Promise<string> {
   return text;
 }
 
-async function commandUpdate(): Promise<void> {
-  await runUpdate({ repo: REPO, currentVersion: VERSION_INFO, baseName: "sloth" });
-}
-
 function buildProgram(): Command {
   const program = new Command().name("sloth").description("isolated cross-chain signer");
   program.version(VERSION_INFO);
@@ -282,14 +276,6 @@ function buildProgram(): Command {
     .action(() => {
       commandWalletIndex();
     });
-  if (REPO) {
-    program
-      .command("update")
-      .description("Update sloth to the latest release")
-      .action(async () => {
-        await commandUpdate();
-      });
-  }
   program.addHelpText("afterAll", ENV_TEXT);
   return program;
 }
