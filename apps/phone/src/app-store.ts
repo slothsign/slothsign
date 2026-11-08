@@ -2,21 +2,26 @@ import type { SignerRequest } from "@slothsign/core";
 import { create } from "zustand";
 import {
   addToRegistry,
+  applyWalletEdit,
   buildWallet,
+  deriveAccounts,
   EMPTY_REGISTRY,
   findAccount,
+  pathsToDerive,
   removeFromRegistry,
   type Registry,
   type RegistryAccount,
   type RegistryWallet,
   type WalletDraft,
+  type WalletEdit,
 } from "./lib/registry";
-import { deleteSecret, loadRegistry, saveRegistry, saveSecret } from "./native/vault";
+import { deleteSecret, loadRegistry, readSecret, saveRegistry, saveSecret } from "./native/vault";
 
 export type Route =
   | { name: "home" }
   | { name: "add-wallet" }
   | { name: "wallet"; id: string }
+  | { name: "edit-wallet"; id: string }
   | { name: "scan" }
   | {
       name: "review";
@@ -34,6 +39,7 @@ interface AppState {
   navigate: (route: Route) => void;
   load: () => Promise<void>;
   addWallet: (draft: WalletDraft) => Promise<void>;
+  editWallet: (wallet: RegistryWallet, edit: WalletEdit) => Promise<void>;
   removeWallet: (id: string) => Promise<void>;
   /** Route a scanned request to review, or return why it can't be signed here. */
   reviewScanned: (request: SignerRequest) => string | undefined;
@@ -60,7 +66,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   addWallet: async (draft) => {
     const { secret, entry } = buildWallet(randomId(), draft);
     const registry = addToRegistry(get().registry, entry);
-    await saveSecret(secret);
+    // The registry owns the path list, so editing paths never rewrites the secret.
+    await saveSecret(secret.kind === "mnemonic" ? { ...secret, paths: [] } : secret);
     try {
       await saveRegistry(registry);
     } catch (error) {
@@ -68,6 +75,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       throw error;
     }
     set({ registry, route: { name: "wallet", id: entry.id } });
+  },
+  editWallet: async (wallet, edit) => {
+    const missing = pathsToDerive(wallet, edit);
+    const derived = missing.length > 0 ? deriveAccounts(await readSecret(wallet.id), missing) : [];
+    const registry = applyWalletEdit(get().registry, wallet, edit, derived);
+    await saveRegistry(registry);
+    set({ registry, route: { name: "wallet", id: wallet.id } });
   },
   removeWallet: async (id) => {
     const registry = removeFromRegistry(get().registry, id);

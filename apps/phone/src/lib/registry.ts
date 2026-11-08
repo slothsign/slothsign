@@ -57,8 +57,24 @@ export function parseRegistry(raw: string): Registry {
   return RegistrySchema.parse(JSON.parse(raw)) as Registry;
 }
 
+/** A problem with what the user entered; its message is written for them. */
+export class WalletInputError extends Error {
+  override name = "WalletInputError";
+}
+
+/** The message to show for a failed wallet change. */
+export function walletErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.name === "WalletInputError" ? error.message : fallback;
+}
+
 export function normalizeMnemonic(mnemonic: string): string {
   return mnemonic.trim().toLowerCase().split(/\s+/).join(" ");
+}
+
+function requireName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) throw new WalletInputError("Give this wallet a name.");
+  return trimmed;
 }
 
 function parsePaths(paths: string): string[] {
@@ -66,22 +82,32 @@ function parsePaths(paths: string): string[] {
     .split("\n")
     .map((path) => path.trim())
     .filter(Boolean);
-  if (list.length === 0) throw new Error("Add at least one derivation path.");
-  if (new Set(list).size !== list.length) throw new Error("Derivation paths must be unique.");
+  if (list.length === 0) throw new WalletInputError("Add at least one derivation path.");
+  if (new Set(list).size !== list.length) {
+    throw new WalletInputError("Derivation paths must be unique.");
+  }
   for (const path of list) {
-    try {
-      pathChain(path);
-    } catch {
-      throw new Error(`"${path}" is not a supported Ethereum or Solana path.`);
+    if (!isSupportedPath(path)) {
+      throw new WalletInputError(`"${path}" is not a supported Ethereum or Solana path.`);
     }
   }
   return list;
 }
 
+function isSupportedPath(path: string): boolean {
+  if (!/^m(\/\d+'?)+$/.test(path)) return false;
+  try {
+    // Solana keys can only be derived along hardened segments.
+    return pathChain(path) !== "solana" || !/\d(\/|$)/.test(path);
+  } catch {
+    return false;
+  }
+}
+
 function mnemonicWallet(id: string, draft: Extract<WalletDraft, { kind: "mnemonic" }>): Wallet {
   const mnemonic = normalizeMnemonic(draft.mnemonic);
   if (!isChecksummedMnemonic(mnemonic)) {
-    throw new Error("That recovery phrase isn't valid. Check each word and its order.");
+    throw new WalletInputError("That recovery phrase isn't valid. Check each word and its order.");
   }
   return {
     id,
@@ -98,9 +124,18 @@ function privateKeyWallet(id: string, draft: Extract<WalletDraft, { kind: "priva
   try {
     chain = inferChain(privateKey);
   } catch {
-    throw new Error("That private key isn't a valid Ethereum or Solana key.");
+    throw new WalletInputError("That private key isn't a valid Ethereum or Solana key.");
   }
   return { id, kind: "privateKey", chain, privateKey };
+}
+
+/** Derive the account at each path. Takes about 1.5 s per path on a phone. */
+export function deriveAccounts(secret: Wallet, paths: string[]): RegistryAccount[] {
+  return paths.map((path) => ({
+    chain: pathChain(path),
+    address: deriveWalletAddress(secret, path),
+    path,
+  }));
 }
 
 /**
@@ -108,17 +143,12 @@ function privateKeyWallet(id: string, draft: Extract<WalletDraft, { kind: "priva
  * mnemonic path), so callers should show progress first.
  */
 export function buildWallet(id: string, draft: WalletDraft) {
-  const name = draft.name.trim();
-  if (!name) throw new Error("Give this wallet a name.");
+  const name = requireName(draft.name);
   const secret =
     draft.kind === "mnemonic" ? mnemonicWallet(id, draft) : privateKeyWallet(id, draft);
   const accounts: RegistryAccount[] =
     secret.kind === "mnemonic"
-      ? secret.paths.map((path) => ({
-          chain: pathChain(path),
-          address: deriveWalletAddress(secret, path),
-          path,
-        }))
+      ? deriveAccounts(secret, secret.paths)
       : [{ chain: secret.chain, address: deriveWalletAddress(secret) }];
   const entry: RegistryWallet = { id, name, kind: secret.kind, accounts };
   return { secret, entry };
@@ -137,14 +167,67 @@ export function findAccount(registry: Registry, ref: AccountRef) {
   return undefined;
 }
 
-export function addToRegistry(registry: Registry, entry: RegistryWallet): Registry {
-  for (const account of entry.accounts) {
+function assertAccountsFree(registry: Registry, accounts: RegistryAccount[]): void {
+  for (const account of accounts) {
     const existing = findAccount(registry, account);
-    if (existing) throw new Error(`${account.address} is already in "${existing.wallet.name}".`);
+    if (existing) {
+      throw new WalletInputError(`${account.address} is already in "${existing.wallet.name}".`);
+    }
   }
+}
+
+export function addToRegistry(registry: Registry, entry: RegistryWallet): Registry {
+  assertAccountsFree(registry, entry.accounts);
   return { ...registry, wallets: [...registry.wallets, entry] };
 }
 
 export function removeFromRegistry(registry: Registry, id: string): Registry {
   return { ...registry, wallets: registry.wallets.filter((wallet) => wallet.id !== id) };
+}
+
+/** Editable parts of a wallet. Key material never changes after it is added. */
+export interface WalletEdit {
+  name: string;
+  /** One derivation path per line; ignored for a private key wallet. */
+  paths?: string;
+}
+
+function editedPaths(wallet: RegistryWallet, edit: WalletEdit): string[] | undefined {
+  return wallet.kind === "mnemonic" && edit.paths !== undefined
+    ? parsePaths(edit.paths)
+    : undefined;
+}
+
+/**
+ * Validate an edit and list the paths that have no address yet. Only these need
+ * the wallet's key, so renaming or removing a path never asks for an unlock.
+ */
+export function pathsToDerive(wallet: RegistryWallet, edit: WalletEdit): string[] {
+  requireName(edit.name);
+  const known = new Set(wallet.accounts.map((account) => account.path));
+  return (editedPaths(wallet, edit) ?? []).filter((path) => !known.has(path));
+}
+
+/** Apply an edit, keeping the wallet's position. `derived` covers `pathsToDerive`. */
+export function applyWalletEdit(
+  registry: Registry,
+  wallet: RegistryWallet,
+  edit: WalletEdit,
+  derived: RegistryAccount[],
+): Registry {
+  const name = requireName(edit.name);
+  const available = [...wallet.accounts, ...derived];
+  const accounts =
+    editedPaths(wallet, edit)?.map((path) => {
+      const account = available.find((candidate) => candidate.path === path);
+      if (!account) throw new Error(`Missing address for ${path}`);
+      return account;
+    }) ?? wallet.accounts;
+  assertAccountsFree(removeFromRegistry(registry, wallet.id), accounts);
+  return {
+    ...registry,
+    wallets: registry.wallets.map((candidate) =>
+      candidate.id === wallet.id ? { ...candidate, name, accounts } : candidate,
+    ),
+  };
 }

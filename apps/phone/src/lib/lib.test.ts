@@ -7,12 +7,17 @@ import { DEFAULT_PATHS } from "@slothsign/signing";
 import { encode } from "borc";
 import {
   addToRegistry,
+  applyWalletEdit,
   buildWallet,
+  deriveAccounts,
   EMPTY_REGISTRY,
   findAccount,
   normalizeMnemonic,
   parseRegistry,
+  pathsToDerive,
   removeFromRegistry,
+  walletErrorMessage,
+  WalletInputError,
 } from "./registry.ts";
 import { RequestScanner, type ScanProgress } from "./request-scanner.ts";
 import { fullRequestText, reviewRequest } from "./review.ts";
@@ -73,6 +78,17 @@ describe("buildWallet", () => {
     ).toThrow("unique");
   });
 
+  test("rejects malformed paths before any key is derived", () => {
+    for (const paths of [
+      "m/44'/60'/0'/0/0x",
+      "m/44'/501'/0'/0'x",
+      "m/44'/501'/0'/0",
+      "m/44'/60'//0",
+    ]) {
+      expect(() => buildWallet("id1", { ...draft, paths })).toThrow("supported");
+    }
+  });
+
   test("requires a name", () => {
     expect(() => buildWallet("id1", { ...draft, name: "  " })).toThrow("name");
   });
@@ -111,6 +127,74 @@ describe("registry", () => {
 
   test("rejects corrupted storage", () => {
     expect(() => parseRegistry('{"version":2,"wallets":[]}')).toThrow();
+  });
+});
+
+describe("editing a wallet", () => {
+  const { secret, entry } = buildWallet("id1", draft);
+  const registry = addToRegistry(EMPTY_REGISTRY, entry);
+  const [evmPath, solanaPath] = DEFAULT_PATHS as [string, string];
+  const newPath = "m/44'/60'/0'/0/1";
+
+  test("renaming needs no key and keeps the accounts", () => {
+    const edit = { name: "  Savings ", paths: DEFAULT_PATHS.join("\n") };
+    expect(pathsToDerive(entry, edit)).toEqual([]);
+    const [edited] = applyWalletEdit(registry, entry, edit, []).wallets;
+    expect(edited?.name).toBe("Savings");
+    expect(edited?.accounts).toEqual(entry.accounts);
+  });
+
+  test("removing a path needs no key", () => {
+    const edit = { name: "Main", paths: solanaPath };
+    expect(pathsToDerive(entry, edit)).toEqual([]);
+    const [edited] = applyWalletEdit(registry, entry, edit, []).wallets;
+    expect(edited?.accounts.map((a) => a.path)).toEqual([solanaPath]);
+  });
+
+  test("only a new path is derived, and the entered order is kept", () => {
+    const edit = { name: "Main", paths: `${newPath}\n${evmPath}` };
+    expect(pathsToDerive(entry, edit)).toEqual([newPath]);
+    const derived = deriveAccounts(secret, [newPath]);
+    const [edited] = applyWalletEdit(registry, entry, edit, derived).wallets;
+    expect(edited?.accounts.map((a) => a.path)).toEqual([newPath, evmPath]);
+    expect(edited?.accounts[1]?.address).toBe(ADDRESS);
+  });
+
+  test("validates before any key is needed", () => {
+    expect(() => pathsToDerive(entry, { name: " ", paths: evmPath })).toThrow("name");
+    expect(() => pathsToDerive(entry, { name: "Main", paths: " \n" })).toThrow("at least one");
+    expect(() => pathsToDerive(entry, { name: "Main", paths: "m/1" })).toThrow("supported");
+  });
+
+  test("rejects a new address already held by another wallet", () => {
+    const other = buildWallet("id2", { ...draft, paths: "m/44'/60'/0'/0/2" }).entry;
+    const both = addToRegistry(registry, other);
+    const edit = { name: "Main", paths: `${evmPath}\nm/44'/60'/0'/0/2` };
+    expect(() => applyWalletEdit(both, entry, edit, other.accounts)).toThrow("already in");
+  });
+
+  test("keeps a wallet's position in the list", () => {
+    const other = buildWallet("id2", { ...draft, paths: "m/44'/60'/0'/0/2" }).entry;
+    const both = addToRegistry(registry, other);
+    const edited = applyWalletEdit(both, entry, { name: "First" }, []);
+    expect(edited.wallets.map((w) => w.id)).toEqual(["id1", "id2"]);
+  });
+
+  test("ignores paths on a private key wallet", () => {
+    const raw = buildWallet("id3", {
+      kind: "privateKey",
+      name: "Raw",
+      privateKey: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+    }).entry;
+    const list = addToRegistry(EMPTY_REGISTRY, raw);
+    const edit = { name: "Renamed", paths: newPath };
+    expect(pathsToDerive(raw, edit)).toEqual([]);
+    expect(applyWalletEdit(list, raw, edit, []).wallets[0]?.accounts).toEqual(raw.accounts);
+  });
+
+  test("only input errors reach the user verbatim", () => {
+    expect(walletErrorMessage(new WalletInputError("Shown"), "Fallback")).toBe("Shown");
+    expect(walletErrorMessage(new Error("Internal detail"), "Fallback")).toBe("Fallback");
   });
 });
 

@@ -5,7 +5,7 @@ import { DEFAULT_PATHS } from "@slothsign/signing";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../app-store";
 import { Button, Card, ErrorText, Field, Muted, Screen, styles, Title } from "../components/ui";
-import type { WalletDraft } from "../lib/registry";
+import { walletErrorMessage, type WalletDraft } from "../lib/registry";
 
 type Mode = "create" | "phrase" | "key";
 
@@ -55,8 +55,7 @@ export function AddWalletScreen() {
     try {
       await addWallet(draft());
     } catch (e) {
-      // Validation errors are written for users; storage errors are not.
-      setError(e instanceof Error && e.name === "Error" ? friendly(e.message) : SAVE_FAILED);
+      setError(walletErrorMessage(e, SAVE_FAILED));
       setBusy(false);
     }
   }
@@ -165,18 +164,4 @@ export function AddWalletScreen() {
       <Button title="Cancel" variant="secondary" onPress={() => navigate({ name: "home" })} />
     </Screen>
   );
-}
-
-const USER_MESSAGES = [
-  "isn't valid",
-  "isn't a valid",
-  "is not a supported",
-  "must be unique",
-  "at least one",
-  "name",
-  "already in",
-];
-
-function friendly(message: string): string {
-  return USER_MESSAGES.some((text) => message.includes(text)) ? message : SAVE_FAILED;
 }

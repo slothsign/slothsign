@@ -58,6 +58,11 @@ export function WalletScreen({ id }: { id: string }) {
       ))}
       {error ? <ErrorText>{error}</ErrorText> : null}
       <Button title="Done" onPress={() => navigate({ name: "home" })} />
+      <Button
+        title="Edit wallet"
+        variant="secondary"
+        onPress={() => navigate({ name: "edit-wallet", id })}
+      />
       <Button title="Remove wallet" variant="danger" onPress={confirmRemove} />
     </Screen>
   );

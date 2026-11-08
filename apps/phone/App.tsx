@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useAppStore, type Route } from "./src/app-store";
 import { AddWalletScreen } from "./src/screens/add-wallet-screen";
+import { EditWalletScreen } from "./src/screens/edit-wallet-screen";
 import { HomeScreen } from "./src/screens/home-screen";
 import { ResultScreen } from "./src/screens/result-screen";
 import { ReviewScreen } from "./src/screens/review-screen";
@@ -19,6 +20,8 @@ function CurrentScreen({ route }: { route: Route }) {
       return <AddWalletScreen />;
     case "wallet":
       return <WalletScreen id={route.id} />;
+    case "edit-wallet":
+      return <EditWalletScreen id={route.id} />;
     case "scan":
       return <ScanScreen />;
     case "review":
