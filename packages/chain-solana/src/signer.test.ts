@@ -1,10 +1,12 @@
+import { ed25519 } from "@noble/curves/ed25519.js";
 import { describe, expect, test } from "bun:test";
 import {
-  Keypair,
+  PublicKey,
   Transaction,
   VersionedTransaction,
   TransactionMessage,
   SystemProgram,
+  type Blockhash,
 } from "@solana/web3.js";
 import {
   signTransaction,
@@ -21,17 +23,21 @@ import { bytesToBase64, base64ToBytes } from "./payload.ts";
 const MNEMONIC = "repair item secret false deliver skin salmon guard inspire pill lesson adult";
 const ADDRESS = "BTq6wsM2EA6L8NyG19GPFJ7j9tGJmt8786CzMab7YPiM";
 
-function legacyTx(): Uint8Array {
+function randomKey(): PublicKey {
+  return new PublicKey(crypto.getRandomValues(new Uint8Array(32)));
+}
+
+function legacyTx(): Promise<Uint8Array> {
   const kp = keypairFromMnemonic(MNEMONIC);
   const tx = new Transaction();
   tx.add(
     SystemProgram.transfer({
       fromPubkey: kp.publicKey,
-      toPubkey: Keypair.generate().publicKey,
+      toPubkey: randomKey(),
       lamports: 100,
     }),
   );
-  tx.recentBlockhash = Keypair.generate().publicKey.toBase58();
+  tx.recentBlockhash = randomKey().toBase58() as string as Blockhash;
   tx.feePayer = kp.publicKey;
   return tx.serialize({ verifySignatures: false });
 }
@@ -39,12 +45,12 @@ function legacyTx(): Uint8Array {
 function versionedTx(): VersionedTransaction {
   const kp = keypairFromMnemonic(MNEMONIC);
   const message = new TransactionMessage({
-    recentBlockhash: Keypair.generate().publicKey.toBase58(),
+    recentBlockhash: randomKey().toBase58() as string as Blockhash,
     payerKey: kp.publicKey,
     instructions: [
       SystemProgram.transfer({
         fromPubkey: kp.publicKey,
-        toPubkey: Keypair.generate().publicKey,
+        toPubkey: randomKey(),
         lamports: 100,
       }),
     ],
@@ -54,7 +60,7 @@ function versionedTx(): VersionedTransaction {
 
 describe("keypairFromMnemonic", () => {
   test("derives the expected public key (SLIP-0010)", () => {
-    expect(keypairFromMnemonic(MNEMONIC).publicKey.toBase58()).toBe(ADDRESS);
+    expect<string>(keypairFromMnemonic(MNEMONIC).publicKey.toBase58()).toBe(ADDRESS);
   });
 
   test("honors an explicit derivation path", () => {
@@ -113,31 +119,31 @@ function base58Encode(bytes: Uint8Array): string {
 }
 
 describe("signTransaction (legacy)", () => {
-  test("signs and returns a verifiable legacy transaction", () => {
+  test("signs and returns a verifiable legacy transaction", async () => {
     const kp = keypairFromMnemonic(MNEMONIC);
-    const tx = legacyTx();
-    const signed = signTransaction(kp, tx);
+    const tx = await legacyTx();
+    const signed = await signTransaction(kp, tx);
     const parsed = Transaction.from(signed);
     expect(parsed.signatures.length).toBe(1);
     expect(parsed.signatures[0]?.signature).not.toBeNull();
-    expect(parsed.verifySignatures()).toBe(true);
+    expect(await parsed.verifySignatures()).toBe(true);
   });
 });
 
 describe("signTransaction (versioned)", () => {
-  test("auto-detects versioned transactions", () => {
+  test("auto-detects versioned transactions", async () => {
     const kp = keypairFromMnemonic(MNEMONIC);
     const tx = versionedTx();
-    const signed = signTransaction(kp, tx.serialize());
+    const signed = await signTransaction(kp, tx.serialize());
     const parsed = VersionedTransaction.deserialize(signed);
     expect(parsed.signatures.length).toBe(1);
     expect(parsed.signatures[0]).not.toEqual(new Uint8Array(64));
   });
 
-  test("signed versioned tx carries a 64-byte signature", () => {
+  test("signed versioned tx carries a 64-byte signature", async () => {
     const kp = keypairFromMnemonic(MNEMONIC);
     const tx = versionedTx();
-    const signed = signTransaction(kp, tx.serialize());
+    const signed = await signTransaction(kp, tx.serialize());
     const parsed = VersionedTransaction.deserialize(signed);
     expect(parsed.signatures[0]?.length).toBe(64);
   });
@@ -149,10 +155,7 @@ describe("signMessage", () => {
     const message = new TextEncoder().encode("hello world");
     const sig = await signMessage(kp, message);
     expect(sig.length).toBe(64);
-    const valid = await import("@noble/ed25519").then((m) =>
-      m.verifyAsync(sig, message, kp.publicKey.toBytes()),
-    );
-    expect(valid).toBe(true);
+    expect(ed25519.verify(sig, message, kp.publicKey.toBytes())).toBe(true);
   });
 });
 
@@ -162,48 +165,45 @@ describe("signMessageFromPayload", () => {
     const message = new TextEncoder().encode("0xdeadbeef");
     const payload = JSON.stringify({ message: bytesToBase64(message), publicKey: ADDRESS });
     const sig = await signMessageFromPayload(kp, payload);
-    const valid = await import("@noble/ed25519").then((m) =>
-      m.verifyAsync(sig, message, kp.publicKey.toBytes()),
-    );
-    expect(valid).toBe(true);
+    expect(ed25519.verify(sig, message, kp.publicKey.toBytes())).toBe(true);
     expect(base64ToBytes).toBeDefined();
   });
 });
 
 describe("signTransactionDetached", () => {
-  test("legacy: returns a 64-byte signature that matches the signed tx", () => {
+  test("legacy: returns a 64-byte signature that matches the signed tx", async () => {
     const kp = keypairFromMnemonic(MNEMONIC);
-    const tx = legacyTx();
+    const tx = await legacyTx();
     const sig = signTransactionDetached(kp, tx);
 
     expect(sig.length).toBe(64);
 
-    const signed = signTransaction(kp, tx);
+    const signed = await signTransaction(kp, tx);
     const parsed = Transaction.from(signed);
     expect(parsed.signatures.length).toBe(1);
     expect(Buffer.from(parsed.signatures[0]?.signature ?? []).toString("hex")).toBe(
       Buffer.from(sig).toString("hex"),
     );
-    expect(parsed.verifySignatures()).toBe(true);
+    expect(await parsed.verifySignatures()).toBe(true);
   });
 
-  test("versioned: returns a 64-byte signature that matches the signed tx", () => {
+  test("versioned: returns a 64-byte signature that matches the signed tx", async () => {
     const kp = keypairFromMnemonic(MNEMONIC);
     const tx = versionedTx().serialize();
     const sig = signTransactionDetached(kp, tx);
 
     expect(sig.length).toBe(64);
 
-    const signed = signTransaction(kp, tx);
+    const signed = await signTransaction(kp, tx);
     const parsed = VersionedTransaction.deserialize(signed);
     expect(parsed.signatures[0]).toEqual(sig);
   });
 });
 
 describe("extractSignature", () => {
-  test("legacy: extracts the 64-byte signature from a signed transaction", () => {
+  test("legacy: extracts the 64-byte signature from a signed transaction", async () => {
     const kp = keypairFromMnemonic(MNEMONIC);
-    const signed = signTransaction(kp, legacyTx());
+    const signed = await signTransaction(kp, await legacyTx());
     const sig = extractSignature(signed);
     expect(sig.length).toBe(64);
     const parsed = Transaction.from(signed);
@@ -212,53 +212,57 @@ describe("extractSignature", () => {
     );
   });
 
-  test("versioned: extracts the 64-byte signature from a signed transaction", () => {
+  test("versioned: extracts the 64-byte signature from a signed transaction", async () => {
     const kp = keypairFromMnemonic(MNEMONIC);
-    const signed = signTransaction(kp, versionedTx().serialize());
+    const signed = await signTransaction(kp, versionedTx().serialize());
     const sig = extractSignature(signed);
     expect(sig.length).toBe(64);
     const parsed = VersionedTransaction.deserialize(signed);
     expect(parsed.signatures[0]).toEqual(sig);
   });
 
-  test("matches the detached signature for the same key", () => {
+  test("matches the detached signature for the same key", async () => {
     const kp = keypairFromMnemonic(MNEMONIC);
-    const tx = legacyTx();
+    const tx = await legacyTx();
     const detached = signTransactionDetached(kp, tx);
-    const sig = extractSignature(signTransaction(kp, tx));
+    const sig = extractSignature(await signTransaction(kp, tx));
     expect(Buffer.from(sig).toString("hex")).toBe(Buffer.from(detached).toString("hex"));
   });
 });
 
 describe("signTransactionWithDetachedSignature", () => {
-  test("legacy: injecting the detached sig yields the same signed tx", () => {
+  test("legacy: injecting the detached sig yields the same signed tx", async () => {
     const kp = keypairFromMnemonic(MNEMONIC);
-    const tx = legacyTx();
+    const tx = await legacyTx();
     const sig = signTransactionDetached(kp, tx);
 
-    const injected = signTransactionWithDetachedSignature(tx, sig, kp.publicKey.toBase58());
+    const injected = await signTransactionWithDetachedSignature(tx, sig, kp.publicKey.toBase58());
     const parsed = Transaction.from(injected);
     expect(parsed.signatures.length).toBe(1);
-    expect(parsed.verifySignatures()).toBe(true);
+    expect(await parsed.verifySignatures()).toBe(true);
     expect(Buffer.from(parsed.signatures[0]?.signature ?? []).toString("hex")).toBe(
       Buffer.from(sig).toString("hex"),
     );
   });
 
-  test("versioned: injecting the detached sig yields the same signed tx", () => {
+  test("versioned: injecting the detached sig yields the same signed tx", async () => {
     const kp = keypairFromMnemonic(MNEMONIC);
     const tx = versionedTx().serialize();
     const sig = signTransactionDetached(kp, tx);
 
-    const injected = signTransactionWithDetachedSignature(tx, sig, kp.publicKey.toBase58());
+    const injected = await signTransactionWithDetachedSignature(tx, sig, kp.publicKey.toBase58());
     const parsed = VersionedTransaction.deserialize(injected);
     expect(parsed.signatures[0]).toEqual(sig);
   });
 
-  test("rejects a non-64-byte signature", () => {
+  test("rejects a non-64-byte signature", async () => {
     const kp = keypairFromMnemonic(MNEMONIC);
-    expect(() =>
-      signTransactionWithDetachedSignature(legacyTx(), new Uint8Array(63), kp.publicKey.toBase58()),
-    ).toThrow();
+    await expect(
+      signTransactionWithDetachedSignature(
+        await legacyTx(),
+        new Uint8Array(63),
+        kp.publicKey.toBase58(),
+      ),
+    ).rejects.toThrow();
   });
 });

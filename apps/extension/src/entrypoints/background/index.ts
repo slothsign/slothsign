@@ -116,7 +116,7 @@ async function finalizeSignature(request: SignPendingRequest, result: unknown): 
       throw new Error("SlothSign: invalid transaction request");
     if (typeof result !== "string") throw new Error("SlothSign: invalid transaction signature");
     const serialized = payloadToTransactionBytes(request.signerRequest.payload);
-    const signed = signedSolanaTransaction(
+    const signed = await signedSolanaTransaction(
       request.signer,
       serialized,
       base64ToBytes(result),
@@ -136,7 +136,7 @@ async function finalizeSignature(request: SignPendingRequest, result: unknown): 
     if (request.signerRequest?.type !== "transaction") return result;
     if (typeof result !== "string") throw new Error("SlothSign: invalid transaction signature");
     const serialized = payloadToTransactionBytes(request.signerRequest.payload);
-    const signed = signedSolanaTransaction(
+    const signed = await signedSolanaTransaction(
       request.signer,
       serialized,
       base64ToBytes(result),

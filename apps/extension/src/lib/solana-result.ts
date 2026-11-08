@@ -10,12 +10,12 @@ const DETACHED_SIGNATURE_BYTES = 64;
  * (scanned from the phone); a serialized transaction is always longer than 64
  * bytes, so the length tells them apart.
  */
-export function signedSolanaTransaction(
+export async function signedSolanaTransaction(
   signer: SignerMode,
   serialized: Uint8Array,
   result: Uint8Array,
   address: string,
-): Uint8Array {
+): Promise<Uint8Array> {
   const detached =
     signer === "keystone-qr" ||
     (signer === "address-qr" && result.length === DETACHED_SIGNATURE_BYTES);

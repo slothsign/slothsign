@@ -26,7 +26,7 @@ export async function broadcastTransaction(
   const connection = new Connection(rpcUrl, (options?.commitment ?? "confirmed") as Commitment);
   return connection.sendRawTransaction(signedTransaction, {
     skipPreflight: options?.skipPreflight,
-    maxRetries: options?.maxRetries,
+    maxRetries: options?.maxRetries === undefined ? undefined : BigInt(options.maxRetries),
     preflightCommitment: options?.commitment as Commitment | undefined,
   });
 }

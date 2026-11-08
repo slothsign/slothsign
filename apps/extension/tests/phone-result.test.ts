@@ -5,26 +5,26 @@ import { Keypair, SystemProgram, Transaction } from "@solana/web3.js";
 import { decodeSignature } from "../src/lib/keystone.ts";
 import { signedSolanaTransaction } from "../src/lib/solana-result.ts";
 
-function transfer() {
-  const keypair = Keypair.fromSeed(new Uint8Array(32).fill(7));
+async function transfer() {
+  const keypair = await Keypair.fromSeed(new Uint8Array(32).fill(7));
   const transaction = new Transaction({
     feePayer: keypair.publicKey,
     recentBlockhash: "11111111111111111111111111111111",
   }).add(
     SystemProgram.transfer({
       fromPubkey: keypair.publicKey,
-      toPubkey: Keypair.fromSeed(new Uint8Array(32).fill(9)).publicKey,
+      toPubkey: (await Keypair.fromSeed(new Uint8Array(32).fill(9))).publicKey,
       lamports: 1000,
     }),
   );
   const serialized = new Uint8Array(
-    transaction.serialize({ requireAllSignatures: false, verifySignatures: false }),
+    await transaction.serialize({ requireAllSignatures: false, verifySignatures: false }),
   );
-  transaction.sign(keypair);
+  await transaction.sign(keypair);
   return {
     address: keypair.publicKey.toBase58(),
     serialized,
-    signed: new Uint8Array(transaction.serialize()),
+    signed: new Uint8Array(await transaction.serialize()),
     signature: new Uint8Array(transaction.signature!),
   };
 }
@@ -43,18 +43,24 @@ describe("phone signature scan-back", () => {
 });
 
 describe("signedSolanaTransaction", () => {
-  test("address-qr injects a detached signature", () => {
-    const { address, serialized, signed, signature } = transfer();
-    expect(signedSolanaTransaction("address-qr", serialized, signature, address)).toEqual(signed);
+  test("address-qr injects a detached signature", async () => {
+    const { address, serialized, signed, signature } = await transfer();
+    expect(await signedSolanaTransaction("address-qr", serialized, signature, address)).toEqual(
+      signed,
+    );
   });
 
-  test("address-qr passes through a full signed transaction", () => {
-    const { address, serialized, signed } = transfer();
-    expect(signedSolanaTransaction("address-qr", serialized, signed, address)).toEqual(signed);
+  test("address-qr passes through a full signed transaction", async () => {
+    const { address, serialized, signed } = await transfer();
+    expect(await signedSolanaTransaction("address-qr", serialized, signed, address)).toEqual(
+      signed,
+    );
   });
 
-  test("keystone-qr rejects anything but a detached signature", () => {
-    const { address, serialized, signed } = transfer();
-    expect(() => signedSolanaTransaction("keystone-qr", serialized, signed, address)).toThrow();
+  test("keystone-qr rejects anything but a detached signature", async () => {
+    const { address, serialized, signed } = await transfer();
+    await expect(
+      signedSolanaTransaction("keystone-qr", serialized, signed, address),
+    ).rejects.toThrow();
   });
 });

@@ -11,10 +11,10 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@noble/ed25519": "^3.1.0",
+    "@noble/curves": "^2.4.0",
     "@slothsign/core": "workspace:*",
     "@slothsign/keystore": "workspace:*",
-    "@solana/web3.js": "^1.95.0"
+    "@solana/web3.js": "^3"
   },
   "devDependencies": {
     "@types/bun": "^1.4.0",

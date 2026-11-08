@@ -85,7 +85,7 @@ export async function signRequest(
       case "transaction": {
         const tx = payloadToTransactionBytes(request.payload);
         const sign = options.detachedSolanaTransaction ? signTransactionDetached : signTransaction;
-        return bytesToBase64(sign(keypair, tx));
+        return bytesToBase64(await sign(keypair, tx));
       }
       case "message": {
         return bytesToBase64(await signMessageFromPayload(keypair, request.payload));

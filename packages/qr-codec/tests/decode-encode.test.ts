@@ -1,9 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { UR, UREncoder, URDecoder } from "@ngraveio/bc-ur";
 import { EthSignRequest, DataType, ETHSignature } from "@keystonehq/bc-ur-registry-eth";
-import { SolSignRequest, SolSignature } from "@keystonehq/bc-ur-registry-sol";
+import {
+  SolSignRequest,
+  SolSignature,
+  CryptoKeypath,
+  PathComponent,
+} from "@keystonehq/bc-ur-registry-sol";
 import { encodeRequest } from "@slothsign/core";
-import { CryptoKeypath, PathComponent } from "@keystonehq/bc-ur-registry";
 import { encode as encodeCbor } from "borc";
 import { decodeRequestText } from "../src/decode.ts";
 import { encodeKeystoneSignature } from "../src/encode.ts";

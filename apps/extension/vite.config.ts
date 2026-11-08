@@ -19,8 +19,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
-      "@keystonehq/bc-ur-registry-eth":
-        "@keystonehq/bc-ur-registry-eth/dist/bc-ur-registry-eth.esm.js",
       hdkey: fileURLToPath(new URL("./src/lib/stubs/hdkey.ts", import.meta.url)),
       secp256k1: fileURLToPath(new URL("./src/lib/stubs/secp256k1.ts", import.meta.url)),
     },

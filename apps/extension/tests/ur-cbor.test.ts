@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { decodeToDataItem } from "@keystonehq/bc-ur-registry";
+import { decodeToDataItem } from "@keystonehq/bc-ur-registry-sol";
 import { DataType, EthSignRequest } from "@keystonehq/bc-ur-registry-eth";
 import { encodeDataItem } from "../src/lib/ur-cbor.ts";
 

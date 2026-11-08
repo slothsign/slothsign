@@ -14,7 +14,7 @@
     "@base-ui/react": "^1.7.0",
     "@crxjs/vite-plugin": "^2.7.1",
     "@iconify-json/mdi": "^1.2.3",
-    "@keystonehq/bc-ur-registry-eth": "^0.22.1",
+    "@keystonehq/bc-ur-registry-eth": "^0.23",
     "@keystonehq/bc-ur-registry-sol": "^0.9.5",
     "@ngraveio/bc-ur": "^1.1.13",
     "@radix-ui/react-dialog": "^1.1.23",
@@ -29,7 +29,7 @@
     "@slothsign/keystore": "workspace:*",
     "@slothsign/qr-codec": "workspace:*",
     "@solana/wallet-standard-features": "^1.4.0",
-    "@solana/web3.js": "^1.98.4",
+    "@solana/web3.js": "^3",
     "@trezor/connect-webextension": "^9.7.3",
     "@vitejs/plugin-react": "^6.1.0",
     "@wallet-standard/base": "^1.1.1",
@@ -57,7 +57,6 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@keystonehq/bc-ur-registry": "^0.7.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.18",

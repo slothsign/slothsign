@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { URDecoder } from "@ngraveio/bc-ur";
-import { decodeToDataItem } from "@keystonehq/bc-ur-registry";
+import { decodeToDataItem } from "@keystonehq/bc-ur-registry-sol";
 import { EthSignRequest } from "@keystonehq/bc-ur-registry-eth";
 import { buildRequestParts } from "../src/lib/keystone.ts";
 import {

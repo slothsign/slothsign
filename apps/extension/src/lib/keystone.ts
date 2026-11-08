@@ -1,12 +1,14 @@
 import { UR, URDecoder, UREncoder } from "@ngraveio/bc-ur";
+import { DataType, ETHSignature, EthSignRequest } from "@keystonehq/bc-ur-registry-eth";
 import {
   CryptoHDKey,
   CryptoKeypath,
   PathComponent,
   RegistryTypes,
-} from "@keystonehq/bc-ur-registry";
-import { DataType, ETHSignature, EthSignRequest } from "@keystonehq/bc-ur-registry-eth";
-import { SolSignRequest, SignType, SolSignature } from "@keystonehq/bc-ur-registry-sol";
+  SolSignRequest,
+  SignType,
+  SolSignature,
+} from "@keystonehq/bc-ur-registry-sol";
 import { PublicKey } from "@solana/web3.js";
 import { encode } from "borc";
 import {

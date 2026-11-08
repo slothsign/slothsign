@@ -6,7 +6,7 @@ import {
   keypairFromMnemonic,
   solanaRequestToSignerRequest,
 } from "@slothsign/chain-solana";
-import { PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
+import { PublicKey, SystemProgram, Transaction, type Blockhash } from "@solana/web3.js";
 import { signRequest } from "./sign.ts";
 import { DEFAULT_PATHS, walletEntries, type MnemonicWallet, type Wallet } from "./wallets.ts";
 
@@ -26,11 +26,11 @@ function evmMessageRequest(address = EVM_ADDRESS) {
   return evmRequestToSignerRequest("personal_sign", ["Hello", address], "0x1");
 }
 
-function solanaTransfer() {
+async function solanaTransfer() {
   const keypair = keypairFromMnemonic(MNEMONIC, SOLANA_PATH);
-  const serialized = new Transaction({
+  const serialized = await new Transaction({
     feePayer: keypair.publicKey,
-    recentBlockhash: "11111111111111111111111111111111",
+    recentBlockhash: "11111111111111111111111111111111" as Blockhash,
   })
     .add(
       SystemProgram.transfer({
@@ -71,20 +71,20 @@ describe("signRequest", () => {
   });
 
   test("returns the full signed Solana transaction by default", async () => {
-    const request = solanaTransfer();
+    const request = await solanaTransfer();
     const result = base64ToBytes(await signRequest(request, WALLET, SOLANA_PATH));
     expect(result.length).toBe(base64ToBytes(request.payload).length);
   });
 
   test("returns a detached 64-byte Solana signature on request", async () => {
-    const result = await signRequest(solanaTransfer(), WALLET, SOLANA_PATH, {
+    const result = await signRequest(await solanaTransfer(), WALLET, SOLANA_PATH, {
       detachedSolanaTransaction: true,
     });
     expect(base64ToBytes(result).length).toBe(64);
   });
 
   test("refuses typed data on Solana", async () => {
-    const request = { ...solanaTransfer(), type: "typedData" as const };
+    const request = { ...(await solanaTransfer()), type: "typedData" as const };
     await expect(signRequest(request, WALLET, SOLANA_PATH)).rejects.toThrow("typedData");
   });
 
