@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { createMnemonic } from "@slothsign/keystore";
 import { DEFAULT_PATHS } from "@slothsign/signing";
 import { useShallow } from "zustand/react/shallow";
@@ -27,7 +27,7 @@ export function AddWalletScreen() {
     useShallow((state) => ({ addWallet: state.addWallet, navigate: state.navigate })),
   );
   const [mode, setMode] = useState<Mode>("create");
-  const [generated] = useState(createMnemonic);
+  const [generated, setGenerated] = useState<string>();
   const [name, setName] = useState("");
   const [phrase, setPhrase] = useState("");
   const [passphrase, setPassphrase] = useState("");
@@ -42,10 +42,28 @@ export function AddWalletScreen() {
     return {
       kind: "mnemonic",
       name,
-      mnemonic: mode === "create" ? generated : phrase,
+      mnemonic: mode === "create" ? (generated ?? "") : phrase,
       passphrase,
       paths,
     };
+  }
+
+  /** New words invalidate anything written down, so the backup must be confirmed again. */
+  function generate() {
+    setGenerated(createMnemonic());
+    setBackedUp(false);
+    setError(undefined);
+  }
+
+  function regenerate() {
+    if (!backedUp) {
+      generate();
+      return;
+    }
+    Alert.alert("Replace these words?", "The words you wrote down won't work for this wallet.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Replace", style: "destructive", onPress: generate },
+    ]);
   }
 
   async function save() {
@@ -89,7 +107,11 @@ export function AddWalletScreen() {
 
       <Field label="Wallet name" value={name} onChangeText={setName} placeholder="Main" />
 
-      {mode === "create" ? (
+      {mode === "create" && !generated ? (
+        <Button title="Generate recovery phrase" onPress={generate} />
+      ) : null}
+
+      {mode === "create" && generated ? (
         <>
           <Card>
             <Text style={styles.rowLabel}>Recovery phrase</Text>
@@ -100,6 +122,7 @@ export function AddWalletScreen() {
                 .join("\n")}
             </Text>
           </Card>
+          <Button title="Regenerate" variant="secondary" disabled={busy} onPress={regenerate} />
           <Muted>
             Write these words on paper, in order. They are the only way to recover this wallet if
             this phone is lost or its fingerprints change.
