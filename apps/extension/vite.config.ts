@@ -7,10 +7,14 @@ import { defineConfig } from "vite";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 import manifest from "./manifest.config.ts";
 
-export default defineConfig({
-  // Build-time log gate (see src/lib/log.ts): on for local dev builds, off
-  // for production (zip) builds, overridable with SLOTHSIGN_DEBUG=0|1.
+export default defineConfig(({ mode }) => ({
   define: {
+    // CRXJS builds .iife.ts content scripts in Vite library mode, which leaves
+    // process.env.NODE_ENV in place. `process` doesn't exist in a page's MAIN
+    // world, so it has to be replaced explicitly.
+    "process.env.NODE_ENV": JSON.stringify(mode),
+    // Build-time log gate (see src/lib/log.ts): on for local dev builds, off
+    // for production (zip) builds, overridable with SLOTHSIGN_DEBUG=0|1.
     __SLOTHSIGN_DEBUG__: JSON.stringify(
       process.env.SLOTHSIGN_DEBUG === "1" ||
         (process.env.SLOTHSIGN_DEBUG !== "0" && process.env.SLOTHSIGN_BUILD_TYPE !== "zip"),
@@ -37,4 +41,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
