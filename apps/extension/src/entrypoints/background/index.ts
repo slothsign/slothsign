@@ -7,7 +7,6 @@ import {
   bytesToBase64,
   extractSignature,
   payloadToTransactionBytes,
-  signTransactionWithDetachedSignature,
   type SolanaBroadcastOptions,
 } from "@slothsign/chain-solana";
 import {
@@ -25,6 +24,7 @@ import {
   type ActiveWallets,
 } from "../../lib/messages.ts";
 import { evmSerializable } from "../../lib/keystone.ts";
+import { signedSolanaTransaction } from "../../lib/solana-result.ts";
 import { evmGasStateFor } from "../../lib/evm-gas.ts";
 import { readableError } from "../../lib/errors.ts";
 import type { SignPendingRequest } from "../../lib/requests.ts";
@@ -107,8 +107,8 @@ async function getActivePageOrigin(): Promise<string | undefined> {
  * Resolve a submitted signature into the value the dApp should receive.
  * For EVM transactions the raw signature is reassembled into a signed raw
  * transaction and broadcast on-chain, returning the real tx hash. For Solana
- * keystone-qr transactions the detached 64-byte signature is injected back
- * into the original serialized transaction, returning the signed tx bytes.
+ * QR transactions a detached 64-byte signature is injected back into the
+ * original serialized transaction, returning the signed tx bytes.
  */
 async function finalizeSignature(request: SignPendingRequest, result: unknown): Promise<unknown> {
   if (request.chain === "solana" && request.method === "signAndSendTransaction") {
@@ -116,10 +116,12 @@ async function finalizeSignature(request: SignPendingRequest, result: unknown): 
       throw new Error("SlothSign: invalid transaction request");
     if (typeof result !== "string") throw new Error("SlothSign: invalid transaction signature");
     const serialized = payloadToTransactionBytes(request.signerRequest.payload);
-    const signed =
-      request.signer === "keystone-qr"
-        ? signTransactionWithDetachedSignature(serialized, base64ToBytes(result), request.address)
-        : base64ToBytes(result);
+    const signed = signedSolanaTransaction(
+      request.signer,
+      serialized,
+      base64ToBytes(result),
+      request.address,
+    );
     const rpcUrls = await readRpcUrls();
     const rpcUrl = rpcUrls[SOLANA_RPC_KEY];
     if (!rpcUrl) throw new Error("SlothSign: no custom Solana RPC endpoint configured");
@@ -127,11 +129,15 @@ async function finalizeSignature(request: SignPendingRequest, result: unknown): 
     await broadcastTransaction(rpcUrl, signed, readSolanaSendOptions(request.params));
     return bytesToBase64(signature);
   }
-  if (request.chain === "solana" && request.signer === "keystone-qr") {
+  if (
+    request.chain === "solana" &&
+    (request.signer === "keystone-qr" || request.signer === "address-qr")
+  ) {
     if (request.signerRequest?.type !== "transaction") return result;
     if (typeof result !== "string") throw new Error("SlothSign: invalid transaction signature");
     const serialized = payloadToTransactionBytes(request.signerRequest.payload);
-    const signed = signTransactionWithDetachedSignature(
+    const signed = signedSolanaTransaction(
+      request.signer,
       serialized,
       base64ToBytes(result),
       request.address,

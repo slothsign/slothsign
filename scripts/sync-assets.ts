@@ -4,6 +4,7 @@
  *   2. Render PNG icons from the SVG into apps/extension/public
  *      (the manifest references icon-<size>.png relative to publicDir, so
  *      CRXJS emits them at the dist root).
+ *   3. Render the phone app icons into apps/phone/assets.
  *
  * Args:
  *   --source <path>   SVG source (default: root/assets/sloth.svg)
@@ -95,3 +96,26 @@ for (const size of sizes) {
     .toFile(join(out, `icon-${size}.png`));
   console.log(`✔ icon-${size}.png -> ${out}`);
 }
+
+// 3. Render the phone app icons. Android crops adaptive icons to the centre, so
+// the foreground keeps the artwork inside the safe zone.
+const phoneAssets = join(appsDir, "phone", "assets");
+mkdirSync(phoneAssets, { recursive: true });
+const PHONE_ICON = 1024;
+const PHONE_ARTWORK = 620;
+const phoneArtwork = await sharp(source, { density: 1200 })
+  .resize(PHONE_ARTWORK, PHONE_ARTWORK, {
+    fit: "contain",
+    background: { r: 0, g: 0, b: 0, alpha: 0 },
+  })
+  .png()
+  .toBuffer();
+const phoneCanvas = (background: sharp.Color) =>
+  sharp({
+    create: { width: PHONE_ICON, height: PHONE_ICON, channels: 4, background },
+  }).composite([{ input: phoneArtwork, gravity: "centre" }]);
+await phoneCanvas({ r: 255, g: 255, b: 255, alpha: 1 }).png().toFile(join(phoneAssets, "icon.png"));
+await phoneCanvas({ r: 0, g: 0, b: 0, alpha: 0 })
+  .png()
+  .toFile(join(phoneAssets, "android-icon-foreground.png"));
+console.log(`✔ phone icons -> ${phoneAssets}`);

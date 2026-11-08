@@ -1,0 +1,25 @@
+{
+  "name": "@slothsign/signing",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@slothsign/chain-evm": "workspace:*",
+    "@slothsign/chain-solana": "workspace:*",
+    "@slothsign/core": "workspace:*",
+    "@slothsign/keystore": "workspace:*",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@solana/web3.js": "^1.98.4",
+    "@types/bun": "^1.4.0",
+    "typescript": "6.0.3"
+  }
+}

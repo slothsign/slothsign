@@ -27,6 +27,7 @@
     "@slothsign/chain-solana": "workspace:*",
     "@slothsign/core": "workspace:*",
     "@slothsign/keystore": "workspace:*",
+    "@slothsign/qr-codec": "workspace:*",
     "@solana/wallet-standard-features": "^1.4.0",
     "@solana/web3.js": "^1.98.4",
     "@trezor/connect-webextension": "^9.7.3",

@@ -1,28 +1,9 @@
 #!/usr/bin/env bun
-import {
-  addressFromPrivateKey,
-  assertSignableEvmTransaction,
-  payloadToMessage,
-  payloadToTx,
-  payloadToTypedData,
-  renderEvmRequest,
-  signEvmSignature,
-  signMessage,
-  signTypedData,
-  type PrivateKey,
-} from "@slothsign/chain-evm";
-import {
-  bytesToBase64,
-  keypairFromMnemonic,
-  keypairFromSecret,
-  payloadToTransactionBytes,
-  renderSolanaRequest,
-  signMessageFromPayload,
-  signTransaction,
-} from "@slothsign/chain-solana";
+import { renderEvmRequest } from "@slothsign/chain-evm";
+import { renderSolanaRequest } from "@slothsign/chain-solana";
 import type { SignerRequest } from "@slothsign/core";
 import { decodeRequest, encodeResult, isSignerRequest } from "@slothsign/core";
-import { derivePrivateKey } from "@slothsign/keystore";
+import { signRequest } from "@slothsign/signing";
 import { Command } from "commander";
 import { createInterface } from "readline/promises";
 import { stdin, stdout } from "process";
@@ -34,7 +15,6 @@ import {
   readWallets,
   resolveKeyId,
   walletEntries,
-  type Wallet,
 } from "./wallets.ts";
 
 const VERSION_INFO = process.env.SLOTH_VERSION_INFO ?? "dev";
@@ -81,85 +61,6 @@ function summarize(request: SignerRequest): void {
   } else {
     logDetail(`intent:  unknown (${rendered.reason ?? "unable to decode"})`);
   }
-}
-
-function hex(bytes: Uint8Array): PrivateKey {
-  return `0x${Buffer.from(bytes).toString("hex")}`;
-}
-
-function evmPrivateKey(wallet: Wallet, path: string | undefined): PrivateKey {
-  if (wallet.kind === "privateKey") return wallet.privateKey as PrivateKey;
-  if (!path) throw new Error("Path required for mnemonic EVM derivation");
-  return hex(derivePrivateKey(wallet.mnemonic, path, wallet.passphrase));
-}
-
-function solanaKeypair(wallet: Wallet, path: string | undefined) {
-  if (wallet.kind === "privateKey") return keypairFromSecret(wallet.privateKey);
-  if (!path) throw new Error("Path required for mnemonic Solana derivation");
-  return keypairFromMnemonic(wallet.mnemonic, path, wallet.passphrase);
-}
-
-function verifyEvmAddress(request: SignerRequest, privateKey: PrivateKey): void {
-  const derived = addressFromPrivateKey(privateKey).toLowerCase();
-  const expected = request.address.toLowerCase();
-  if (derived !== expected) {
-    throw new Error(`Address mismatch: wallet derives ${derived}, request expects ${expected}`);
-  }
-}
-
-function verifySolanaAddress(
-  request: SignerRequest,
-  wallet: Wallet,
-  path: string | undefined,
-): void {
-  const derived = solanaKeypair(wallet, path).publicKey.toBase58();
-  if (derived !== request.address) {
-    throw new Error(
-      `Address mismatch: wallet derives ${derived}, request expects ${request.address}`,
-    );
-  }
-}
-
-async function signRequest(
-  request: SignerRequest,
-  wallet: Wallet,
-  path: string | undefined,
-): Promise<string> {
-  if (request.chain === "ethereum") {
-    const privateKey = evmPrivateKey(wallet, path);
-    verifyEvmAddress(request, privateKey);
-    switch (request.type) {
-      case "transaction": {
-        const tx = payloadToTx(request.payload);
-        assertSignableEvmTransaction(tx);
-        return signEvmSignature(privateKey, tx, request.chainId);
-      }
-      case "message": {
-        const { message } = payloadToMessage(request.payload);
-        return signMessage(privateKey, message);
-      }
-      case "typedData": {
-        const { typedData } = payloadToTypedData(request.payload);
-        return signTypedData(privateKey, typedData);
-      }
-    }
-  }
-  if (request.chain === "solana") {
-    const keypair = solanaKeypair(wallet, path);
-    verifySolanaAddress(request, wallet, path);
-    switch (request.type) {
-      case "transaction": {
-        const tx = payloadToTransactionBytes(request.payload);
-        return bytesToBase64(signTransaction(keypair, tx));
-      }
-      case "message": {
-        return bytesToBase64(await signMessageFromPayload(keypair, request.payload));
-      }
-      case "typedData":
-        throw new Error("Solana does not support typedData signing");
-    }
-  }
-  throw new Error(`Unsupported chain: ${request.chain}`);
 }
 
 async function commandSign(payload: string): Promise<void> {

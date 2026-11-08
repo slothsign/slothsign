@@ -2,7 +2,7 @@ import { randomBytes } from "@noble/hashes/utils.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { scrypt } from "@noble/hashes/scrypt.js";
 import { gcm } from "@noble/ciphers/aes.js";
-import { generateMnemonic, mnemonicToSeedSync } from "@scure/bip39";
+import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
 
 export const KDF_PARAMS = { N: 2 ** 17, r: 8, p: 1 } as const;
@@ -36,6 +36,14 @@ export function isValidMnemonic(mnemonic: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Strict BIP-39 check: every word must be in the English wordlist and the
+ * checksum must match, so a mistyped word is caught at import time.
+ */
+export function isChecksummedMnemonic(mnemonic: string): boolean {
+  return validateMnemonic(mnemonic, wordlist);
 }
 
 function toB64(bytes: Uint8Array): string {

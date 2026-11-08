@@ -23,6 +23,7 @@ import {
   payloadToTransactionBytes,
 } from "@slothsign/chain-solana";
 import { fingerprintFromXpub } from "@slothsign/keystore";
+import { decodeSlothResultUr, SLOTH_RESULT_UR } from "@slothsign/qr-codec/sloth";
 import type { SignerRequest } from "@slothsign/core";
 import { bytesToHex } from "viem";
 import { DEFAULT_EVM_PATH, DEFAULT_SOLANA_PATH, normalizeEvmPath } from "./derivation.ts";
@@ -213,8 +214,9 @@ function encodeParts(ur: UR): string[] {
 
 /**
  * Decode a scanned/pasted signature into the chain-specific signing result.
- * Accepts a BC-UR payload (`ur:…`, eth-signature / sol-signature); anything
- * else (e.g. a legacy sloth://sig/… string) passes through unchanged.
+ * Accepts a BC-UR payload (`ur:…`, eth-signature / sol-signature, or a
+ * sloth-sign-result, which resolves to its sloth://sig/… string); anything else
+ * (e.g. a pasted sloth://sig/… string) passes through unchanged.
  */
 export function decodeSignature(text: string, chain: "ethereum" | "solana"): unknown {
   const value = text.trim();
@@ -223,6 +225,7 @@ export function decodeSignature(text: string, chain: "ethereum" | "solana"): unk
   decoder.receivePart(value.toLowerCase());
   if (!decoder.isComplete() || !decoder.isSuccess()) return value;
   const ur = decoder.resultUR();
+  if (ur.type === SLOTH_RESULT_UR) return decodeSlothResultUr(ur);
   if (chain === "ethereum") {
     if (ur.type !== ETH_SIGNATURE_UR) {
       throw new Error(`Unexpected QR type: ${ur.type}`);

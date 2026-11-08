@@ -20,6 +20,11 @@ zip-extension:
 build-cli:
     cd apps/cli && bun run build
 
+# ---- Phone ----
+# Build the Android release APK (arm64)
+build-phone:
+    cd apps/phone && bunx expo prebuild --platform android --no-install && cd android && ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a
+
 # ---- Checks & tests ----
 # Type-check, lint, and format all packages and apps
 check:

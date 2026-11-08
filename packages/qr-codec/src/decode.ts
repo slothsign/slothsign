@@ -2,8 +2,8 @@ import { decodeRequest, isSignerRequest, type SignerRequest } from "@slothsign/c
 import { EthSignRequest } from "@keystonehq/bc-ur-registry-eth";
 import { SolSignRequest } from "@keystonehq/bc-ur-registry-sol";
 import { URDecoder, UR } from "@ngraveio/bc-ur";
-import { decode } from "borc";
 import { base58 } from "@scure/base";
+import { decodeSlothRequestUr, SLOTH_REQUEST_UR } from "./sloth.ts";
 
 export interface KeystoneEthereumRequest {
   kind: "keystone";
@@ -43,13 +43,6 @@ function uuidStringify(bytes: Uint8Array): string {
 function normalizePath(path: string | undefined): string {
   if (!path) return "";
   return path.startsWith("m/") ? path : `m/${path}`;
-}
-
-function decodeSlothUr(ur: UR): DecodedRequest {
-  const transport = decode(ur.cbor) as string;
-  const request = decodeRequest(transport);
-  if (!request) throw new Error("Invalid sloth-sign-request transport");
-  return { kind: "signer", request };
 }
 
 function decodeEthUr(ur: UR): KeystoneEthereumRequest {
@@ -104,8 +97,8 @@ function decodeSolUr(ur: UR): KeystoneSolanaRequest {
 function decodeUr(text: string): DecodedRequest {
   const ur = URDecoder.decode(text);
   switch (ur.type) {
-    case "sloth-sign-request":
-      return decodeSlothUr(ur);
+    case SLOTH_REQUEST_UR:
+      return { kind: "signer", request: decodeSlothRequestUr(ur) };
     case "eth-sign-request":
       return decodeEthUr(ur);
     case "sol-sign-request":

@@ -17,6 +17,7 @@
     "@slothsign/chain-solana": "workspace:*",
     "@slothsign/core": "workspace:*",
     "@slothsign/keystore": "workspace:*",
+    "@slothsign/signing": "workspace:*",
     "commander": "^15.0.0",
     "zod": "^4.4.3"
   },

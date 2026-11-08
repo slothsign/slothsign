@@ -1,0 +1,44 @@
+{
+  "name": "@slothsign/phone",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "android": "expo run:android --variant release",
+    "check": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@ngraveio/bc-ur": "^1.1.13",
+    "@noble/ed25519": "^3.1.0",
+    "@noble/hashes": "^2.3.0",
+    "@slothsign/chain-evm": "workspace:*",
+    "@slothsign/chain-solana": "workspace:*",
+    "@slothsign/core": "workspace:*",
+    "@slothsign/keystore": "workspace:*",
+    "@slothsign/qr-codec": "workspace:*",
+    "@slothsign/signing": "workspace:*",
+    "@solana/web3.js": "^1.98.4",
+    "buffer": "^6.0.3",
+    "expo": "~58.0.23",
+    "expo-camera": "~58.0.14",
+    "expo-screen-capture": "~58.0.6",
+    "expo-secure-store": "~58.0.2",
+    "expo-status-bar": "~58.0.4",
+    "qrcode": "^1.5.4",
+    "react": "19.3.0",
+    "react-native": "0.88.1",
+    "react-native-get-random-values": "^2.1.0",
+    "react-native-safe-area-context": "~5.11.1",
+    "react-native-svg": "15.16.0",
+    "zod": "^4.4.3",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.0",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "~19.3.0",
+    "borc": "^3.0.0",
+    "typescript": "~6.0.3"
+  }
+}
