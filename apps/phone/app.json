@@ -15,7 +15,8 @@
           "recordAudioAndroid": false
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "./plugins/with-release-signing.js"
     ],
     "android": {
       "package": "com.slothsign.signer",
