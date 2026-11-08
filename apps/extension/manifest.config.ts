@@ -10,6 +10,10 @@ export default defineManifest({
   version,
   permissions: ["storage", "activeTab", "scripting"],
   host_permissions: ["https://*/*"],
+  // Trezor Suite Web returns signing results to the extension through this channel.
+  externally_connectable: {
+    matches: ["https://suite.trezor.io/*"],
+  },
   background: {
     service_worker: "src/entrypoints/background/index.ts",
     type: "module",

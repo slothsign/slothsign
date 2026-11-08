@@ -30,7 +30,7 @@
     "@slothsign/qr-codec": "workspace:*",
     "@solana/wallet-standard-features": "^1.4.0",
     "@solana/web3.js": "^3",
-    "@trezor/connect-webextension": "^9.7.3",
+    "@trezor/connect-webextension": "^10.0.1",
     "@vitejs/plugin-react": "^6.1.0",
     "@wallet-standard/base": "^1.1.1",
     "@wallet-standard/features": "^1.1.1",

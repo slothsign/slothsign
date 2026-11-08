@@ -7,6 +7,7 @@ import type { SignPendingRequest } from "../../lib/requests.ts";
 import type { WalletConfig } from "../../lib/types.ts";
 
 const TREZOR_MANIFEST = {
+  appName: "SlothSign",
   email: "hello@slothsign.app",
   appUrl: "https://github.com/slothsign/slothsign",
 };
@@ -26,6 +27,10 @@ export function ensureTrezorConnect(): Promise<void> {
   });
   return next;
 }
+
+type TrezorTransaction = Parameters<typeof TrezorConnect.ethereumSignTransaction>[0]["transaction"];
+
+type TrezorTypedData = Parameters<typeof TrezorConnect.ethereumSignTypedData>[0]["data"];
 
 interface TrezorTxResult {
   v: string;
@@ -78,7 +83,7 @@ export async function getTrezorXpub(path: string): Promise<string> {
  */
 async function getTrezorAddressSilent(path: string): Promise<string> {
   const res = unwrap<{ address: unknown }>(
-    await TrezorConnect.ethereumGetAddress({ path, showOnDisplay: false, keepSession: true }),
+    await TrezorConnect.ethereumGetAddress({ path, showOnTrezor: false, keepSession: true }),
     "address check",
   );
   if (typeof res.address !== "string" || !res.address) {
@@ -104,8 +109,8 @@ async function getTrezorSolanaAddressSilent(path: string): Promise<string> {
 
 /**
  * Sign a Solana transaction request with the connected Trezor. Returns the
- * base64-encoded fully-signed transaction bytes, matching what the
- * background's `finalizeSignature` passes through for non-QR signers.
+ * base64-encoded detached signature, which the background's
+ * `finalizeSignature` injects into the original transaction.
  * Solana message signing is not supported by Trezor firmware.
  */
 export async function signSolanaWithTrezor(
@@ -129,7 +134,7 @@ export async function signSolanaWithTrezor(
     "transaction signing",
   );
   if (typeof res.signature !== "string" || !res.signature) {
-    throw new Error("Trezor returned no signed transaction");
+    throw new Error("Trezor returned no signature");
   }
   return bytesToBase64(hexToBytes(`0x${res.signature}` as `0x${string}`));
 }
@@ -176,7 +181,10 @@ export async function signEvmWithTrezor(
         if (transaction[key] === undefined) delete transaction[key];
       }
       const res = unwrap<TrezorTxResult>(
-        await TrezorConnect.ethereumSignTransaction({ path, transaction }),
+        await TrezorConnect.ethereumSignTransaction({
+          path,
+          transaction: transaction as unknown as TrezorTransaction,
+        }),
         "transaction signing",
       );
       const v = BigInt(res.v);
@@ -208,7 +216,7 @@ export async function signEvmWithTrezor(
       const res = unwrap<TrezorSignatureResult>(
         await TrezorConnect.ethereumSignTypedData({
           path,
-          data: typedData,
+          data: typedData as unknown as TrezorTypedData,
           metamask_v4_compat: true,
         }),
         "typed-data signing",

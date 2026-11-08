@@ -57,6 +57,16 @@ describe("signedSolanaTransaction", () => {
     );
   });
 
+  test("trezor injects its detached signature", async () => {
+    const { address, serialized, signed, signature } = await transfer();
+    expect(await signedSolanaTransaction("trezor", serialized, signature, address)).toEqual(signed);
+  });
+
+  test("trezor rejects anything but a detached signature", async () => {
+    const { address, serialized, signed } = await transfer();
+    await expect(signedSolanaTransaction("trezor", serialized, signed, address)).rejects.toThrow();
+  });
+
   test("keystone-qr rejects anything but a detached signature", async () => {
     const { address, serialized, signed } = await transfer();
     await expect(

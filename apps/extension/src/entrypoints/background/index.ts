@@ -107,7 +107,7 @@ async function getActivePageOrigin(): Promise<string | undefined> {
  * Resolve a submitted signature into the value the dApp should receive.
  * For EVM transactions the raw signature is reassembled into a signed raw
  * transaction and broadcast on-chain, returning the real tx hash. For Solana
- * QR transactions a detached 64-byte signature is injected back into the
+ * QR and Trezor transactions a detached 64-byte signature is injected back into the
  * original serialized transaction, returning the signed tx bytes.
  */
 async function finalizeSignature(request: SignPendingRequest, result: unknown): Promise<unknown> {
@@ -131,7 +131,9 @@ async function finalizeSignature(request: SignPendingRequest, result: unknown): 
   }
   if (
     request.chain === "solana" &&
-    (request.signer === "keystone-qr" || request.signer === "address-qr")
+    (request.signer === "keystone-qr" ||
+      request.signer === "address-qr" ||
+      request.signer === "trezor")
   ) {
     if (request.signerRequest?.type !== "transaction") return result;
     if (typeof result !== "string") throw new Error("SlothSign: invalid transaction signature");
