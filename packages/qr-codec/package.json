@@ -12,15 +12,15 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@keystonehq/bc-ur-registry-eth": "^0.23",
+    "@keystonehq/bc-ur-registry-eth": "^0.23.0",
     "@keystonehq/bc-ur-registry-sol": "^0.9.5",
     "@ngraveio/bc-ur": "^1.1.13",
-    "@scure/base": "^1.2.0",
+    "@scure/base": "^2.4.0",
     "@slothsign/core": "workspace:*",
     "borc": "^3.0.0"
   },
   "devDependencies": {
-    "@types/bun": "^1.4.0",
-    "typescript": "6.0.3"
+    "@types/bun": "^1.4.4",
+    "typescript": "7.0.2"
   }
 }

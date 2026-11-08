@@ -7,7 +7,7 @@
   ],
   "scripts": {},
   "devDependencies": {
-    "oxfmt": "^0.64.0",
+    "oxfmt": "^0.77.0",
     "oxlint": "^1.92.0",
     "sharp": "^0.35.5",
     "vite-plugin-node-polyfills": "^0.28.0"
