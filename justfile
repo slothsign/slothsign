@@ -7,37 +7,37 @@ sync-assets:
 
 # ---- Extension ----
 # Run the extension dev server (WXT)
-dev-extension:
+ext-dev:
     cd apps/extension && bun run dev
 
 # Build the extension (WXT)
-build-extension:
+ext-build:
     cd apps/extension && bun run build
 
 # Package the extension into a zip
-zip-extension:
+ext-zip:
     cd apps/extension && rm -f slothsign.zip && bun run zip
 
 # ---- CLI ----
 # Build the CLI binaries and write bin/version.txt
-build-cli:
+cli-build:
     cd apps/cli && bun run build
 
 # ---- Phone ----
 # Regenerate the Android native project from app.json
-sync-phone:
+phone-sync:
     cd apps/phone && EXPO_NO_GIT_STATUS=1 bunx expo prebuild --platform android --no-install --clean
 
-# Build the signed Android release APK for arm64 (sync-phone regenerates the native project first)
-build-phone: sync-phone
+# Build the signed Android release APK for arm64 (phone-sync regenerates the native project first)
+phone-build: phone-sync
     bash scripts/build-phone.sh
 
 # Install the built release APK on the connected phone, keeping its wallets
-install-phone:
+phone-install:
     adb install --user 0 -r apps/phone/android/app/build/outputs/apk/release/app-release.apk
 
 # Upload the release APK to R2
-upload-phone:
+phone-upload:
     rclone copyto apps/phone/android/app/build/outputs/apk/release/app-release.apk r2:public/slothsign/app-release.apk
 
 # ---- Checks & tests ----
