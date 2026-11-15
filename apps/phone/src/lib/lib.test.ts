@@ -19,6 +19,7 @@ import {
   walletErrorMessage,
   WalletInputError,
 } from "./registry.ts";
+import { emptyWords, nextBlank, placeWords, resizeWords } from "./phrase-entry.ts";
 import { RequestScanner, type ScanProgress } from "./request-scanner.ts";
 import { fullRequestText, reviewRequest } from "./review.ts";
 
@@ -290,5 +291,36 @@ describe("reviewRequest", () => {
       publicKey: "oeYf6KAJkLYhBuR8CiGc6L4D4Xtfepr85fuDgA9kq96",
     });
     expect(reviewRequest(request).warning).toBeDefined();
+  });
+});
+
+describe("phrase entry", () => {
+  test("resizing keeps the words already entered", () => {
+    expect(resizeWords(["a", "b", "c"], 2)).toEqual(["a", "b"]);
+    expect(resizeWords(["a"], 3)).toEqual(["a", "", ""]);
+  });
+
+  test("finds the next blank slot, wrapping around", () => {
+    expect(nextBlank(["a", "", "c", ""], 2)).toBe(3);
+    expect(nextBlank(["", "b", "c"], 1)).toBe(0);
+    expect(nextBlank(["a", "b"], 0)).toBeUndefined();
+  });
+
+  test("pasting a whole phrase fills and resizes", () => {
+    const result = placeWords(emptyWords(24), 0, ` ${MNEMONIC.toUpperCase()}\n`);
+    expect(result.words.join(" ")).toBe(MNEMONIC);
+    expect(result.next).toBeUndefined();
+  });
+
+  test("stops at a word outside the wordlist and keeps it as typed text", () => {
+    const result = placeWords(emptyWords(12), 2, "zoo abandn wolf");
+    expect(result.words.slice(0, 4)).toEqual(["", "", "zoo", ""]);
+    expect(result).toMatchObject({ rest: "abandn", next: 3 });
+  });
+
+  test("ignores words beyond the last slot", () => {
+    const result = placeWords(emptyWords(12), 11, "zoo wolf");
+    expect(result.words[11]).toBe("zoo");
+    expect(result.next).toBe(0);
   });
 });

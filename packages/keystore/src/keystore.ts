@@ -46,6 +46,23 @@ export function isChecksummedMnemonic(mnemonic: string): boolean {
   return validateMnemonic(mnemonic, wordlist);
 }
 
+export function isMnemonicWord(word: string): boolean {
+  return wordlist.includes(word);
+}
+
+/** Wordlist entries starting with `prefix`, in alphabetical order. */
+export function suggestMnemonicWords(prefix: string, limit = 4): string[] {
+  const needle = prefix.trim().toLowerCase();
+  if (!needle) return [];
+  const matches: string[] = [];
+  for (const word of wordlist) {
+    if (!word.startsWith(needle)) continue;
+    matches.push(word);
+    if (matches.length === limit) break;
+  }
+  return matches;
+}
+
 function toB64(bytes: Uint8Array): string {
   let binary = "";
   for (const b of bytes) binary += String.fromCharCode(b);
