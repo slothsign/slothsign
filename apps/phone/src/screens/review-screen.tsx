@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Text } from "react-native";
+import { ChevronDown, ChevronUp, PenLine, X } from "lucide-react-native";
 import type { SignerRequest } from "@slothsign/core";
 import { encodeResult } from "@slothsign/core";
 import { encodeSlothResultUr } from "@slothsign/qr-codec/sloth";
@@ -72,6 +73,7 @@ export function ReviewScreen({
       </Card>
       <Button
         title={expanded ? "Hide full request" : "Show full request"}
+        icon={expanded ? ChevronUp : ChevronDown}
         variant="secondary"
         onPress={() => setExpanded(!expanded)}
       />
@@ -83,9 +85,10 @@ export function ReviewScreen({
         </Card>
       ) : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
-      <Button title="Sign" busy={busy} onPress={() => void sign()} />
+      <Button title="Sign" icon={PenLine} busy={busy} onPress={() => void sign()} />
       <Button
         title="Reject"
+        icon={X}
         variant="secondary"
         disabled={busy}
         onPress={() => navigate({ name: "home" })}

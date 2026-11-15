@@ -2,6 +2,18 @@ import { useEffect, useState } from "react";
 import { Alert, BackHandler, Pressable, StyleSheet, Text, View } from "react-native";
 import { createMnemonic, isChecksummedMnemonic } from "@slothsign/keystore";
 import { DEFAULT_PATHS } from "@slothsign/signing";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  KeyRound,
+  ListOrdered,
+  RefreshCw,
+  Sparkles,
+  Square,
+  SquareCheckBig,
+  type LucideIcon,
+} from "lucide-react-native";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../app-store";
 import { PhraseEntry } from "../components/phrase-entry";
@@ -11,6 +23,7 @@ import {
   colors,
   ErrorText,
   Field,
+  ListItem,
   Muted,
   Screen,
   styles,
@@ -22,19 +35,22 @@ import { walletErrorMessage, type WalletDraft } from "../lib/registry";
 type Mode = "create" | "phrase" | "key";
 type Step = "choose" | "secret" | "details";
 
-const MODES: { mode: Mode; label: string; description: string }[] = [
+const MODES: { mode: Mode; icon: LucideIcon; label: string; description: string }[] = [
   {
     mode: "create",
+    icon: Sparkles,
     label: "Create a new wallet",
     description: "Generate a fresh recovery phrase on this phone.",
   },
   {
     mode: "phrase",
+    icon: ListOrdered,
     label: "Import a recovery phrase",
     description: "Enter the 12 to 24 words of an existing wallet.",
   },
   {
     mode: "key",
+    icon: KeyRound,
     label: "Import a private key",
     description: "Add a single Ethereum or Solana account.",
   },
@@ -162,17 +178,16 @@ export function AddWalletScreen() {
       {step === "choose" ? (
         <>
           {MODES.map((item) => (
-            <Pressable
+            <ListItem
               key={item.mode}
-              accessibilityRole="button"
+              icon={item.icon}
+              title={item.label}
               onPress={() => choose(item.mode)}
-              style={local.option}
             >
-              <Text style={styles.buttonText}>{item.label}</Text>
               <Muted>{item.description}</Muted>
-            </Pressable>
+            </ListItem>
           ))}
-          <Button title="Cancel" variant="secondary" onPress={back} />
+          <Button title="Cancel" icon={ArrowLeft} variant="secondary" onPress={back} />
         </>
       ) : null}
 
@@ -194,14 +209,21 @@ export function AddWalletScreen() {
               ))}
             </View>
           </Card>
-          <Button title="Regenerate" variant="secondary" onPress={regenerate} />
+          <Button title="Regenerate" icon={RefreshCw} variant="secondary" onPress={regenerate} />
           <Pressable
             accessibilityRole="checkbox"
             accessibilityState={{ checked: backedUp }}
             onPress={() => setBackedUp(!backedUp)}
             style={[styles.button, styles.button_secondary]}
           >
-            <Text style={styles.buttonText}>{backedUp ? "☑" : "☐"} I wrote them down</Text>
+            <View style={styles.buttonContent}>
+              {backedUp ? (
+                <SquareCheckBig color={colors.success} size={20} />
+              ) : (
+                <Square color={colors.text} size={20} />
+              )}
+              <Text style={styles.buttonText}>I wrote them down</Text>
+            </View>
           </Pressable>
         </>
       ) : null}
@@ -229,8 +251,13 @@ export function AddWalletScreen() {
 
       {step === "secret" ? (
         <>
-          <Button title="Continue" disabled={!secretReady} onPress={() => goTo("details")} />
-          <Button title="Back" variant="secondary" onPress={back} />
+          <Button
+            title="Continue"
+            icon={ArrowRight}
+            disabled={!secretReady}
+            onPress={() => goTo("details")}
+          />
+          <Button title="Back" icon={ArrowLeft} variant="secondary" onPress={back} />
         </>
       ) : null}
 
@@ -262,8 +289,14 @@ export function AddWalletScreen() {
             </>
           )}
           {error ? <ErrorText>{error}</ErrorText> : null}
-          <Button title="Save wallet" busy={busy} onPress={() => void save()} />
-          <Button title="Back" variant="secondary" disabled={busy} onPress={back} />
+          <Button title="Save wallet" icon={Check} busy={busy} onPress={() => void save()} />
+          <Button
+            title="Back"
+            icon={ArrowLeft}
+            variant="secondary"
+            disabled={busy}
+            onPress={back}
+          />
         </>
       ) : null}
     </Screen>
@@ -271,12 +304,6 @@ export function AddWalletScreen() {
 }
 
 const local = StyleSheet.create({
-  option: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    gap: 4,
-    padding: 16,
-  },
   wordGrid: { flexDirection: "row", flexWrap: "wrap", rowGap: 10 },
   word: { flexBasis: "33%", flexDirection: "row", gap: 6 },
   wordNumber: { color: colors.muted, fontSize: 12, minWidth: 18, textAlignVertical: "center" },

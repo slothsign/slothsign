@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Check, X } from "lucide-react-native";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../app-store";
 import { Button, ErrorText, Field, Muted, Screen, Title } from "../components/ui";
@@ -54,9 +55,10 @@ export function EditWalletScreen({ id }: { id: string }) {
         {hasPaths ? "The recovery phrase can't be changed." : "The private key can't be changed."}
       </Muted>
       {error ? <ErrorText>{error}</ErrorText> : null}
-      <Button title="Save" busy={busy} onPress={() => void save()} />
+      <Button title="Save" icon={Check} busy={busy} onPress={() => void save()} />
       <Button
         title="Cancel"
+        icon={X}
         variant="secondary"
         disabled={busy}
         onPress={() => navigate({ name: "wallet", id })}

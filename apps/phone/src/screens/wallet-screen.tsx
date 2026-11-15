@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Alert } from "react-native";
+import { Check, EyeOff, Pencil, QrCode as QrCodeIcon, Trash2 } from "lucide-react-native";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../app-store";
 import { QrCode } from "../components/qr-code";
@@ -49,6 +50,7 @@ export function WalletScreen({ id }: { id: string }) {
           {shownAddress === account.address ? <QrCode value={account.address} size={220} /> : null}
           <Button
             title={shownAddress === account.address ? "Hide QR" : "Show address QR"}
+            icon={shownAddress === account.address ? EyeOff : QrCodeIcon}
             variant="secondary"
             onPress={() =>
               setShownAddress(shownAddress === account.address ? undefined : account.address)
@@ -57,13 +59,14 @@ export function WalletScreen({ id }: { id: string }) {
         </Card>
       ))}
       {error ? <ErrorText>{error}</ErrorText> : null}
-      <Button title="Done" onPress={() => navigate({ name: "home" })} />
+      <Button title="Done" icon={Check} onPress={() => navigate({ name: "home" })} />
       <Button
         title="Edit wallet"
+        icon={Pencil}
         variant="secondary"
         onPress={() => navigate({ name: "edit-wallet", id })}
       />
-      <Button title="Remove wallet" variant="danger" onPress={confirmRemove} />
+      <Button title="Remove wallet" icon={Trash2} variant="danger" onPress={confirmRemove} />
     </Screen>
   );
 }

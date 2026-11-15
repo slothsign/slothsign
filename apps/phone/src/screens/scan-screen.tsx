@@ -1,9 +1,19 @@
 import { useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import { Camera, RotateCcw, ScanLine, X } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppStore } from "../app-store";
-import { Button, ErrorText, Muted, Screen, styles as ui, Title } from "../components/ui";
+import {
+  Button,
+  colors,
+  ErrorText,
+  IconBadge,
+  Muted,
+  Screen,
+  styles as ui,
+  Title,
+} from "../components/ui";
 import { RequestScanner } from "../lib/request-scanner";
 
 export function ScanScreen() {
@@ -36,10 +46,16 @@ export function ScanScreen() {
   if (!permission?.granted) {
     return (
       <Screen>
+        <IconBadge icon={Camera} size={56} />
         <Title>Scan request</Title>
         <Muted>SlothSigner needs the camera to read signing requests.</Muted>
-        <Button title="Allow camera" onPress={() => void requestPermission()} />
-        <Button title="Cancel" variant="secondary" onPress={() => navigate({ name: "home" })} />
+        <Button title="Allow camera" icon={Camera} onPress={() => void requestPermission()} />
+        <Button
+          title="Cancel"
+          icon={X}
+          variant="secondary"
+          onPress={() => navigate({ name: "home" })}
+        />
       </Screen>
     );
   }
@@ -60,13 +76,21 @@ export function ScanScreen() {
       )}
       <View style={styles.panel}>
         {error ? (
-          <Button title="Scan again" onPress={restart} />
+          <Button title="Scan again" icon={RotateCcw} onPress={restart} />
         ) : (
-          <Text style={ui.rowValue}>
-            {percent === undefined ? "Point the camera at the QR code" : `Reading… ${percent}%`}
-          </Text>
+          <View style={styles.status}>
+            <ScanLine color={colors.muted} size={20} />
+            <Text style={ui.rowValue}>
+              {percent === undefined ? "Point the camera at the QR code" : `Reading… ${percent}%`}
+            </Text>
+          </View>
         )}
-        <Button title="Cancel" variant="secondary" onPress={() => navigate({ name: "home" })} />
+        <Button
+          title="Cancel"
+          icon={X}
+          variant="secondary"
+          onPress={() => navigate({ name: "home" })}
+        />
       </View>
     </SafeAreaView>
   );
@@ -76,4 +100,5 @@ const styles = StyleSheet.create({
   camera: { flex: 1 },
   placeholder: { flex: 1, justifyContent: "center", padding: 20 },
   panel: { gap: 12, padding: 20 },
+  status: { alignItems: "center", flexDirection: "row", gap: 8 },
 });
