@@ -8,7 +8,7 @@ export default defineManifest({
   name: buildType === "zip" ? "SlothSign" : "SlothSign (Build)",
   description: "Just sign. Isolated Web3 signer provider.",
   version,
-  permissions: ["storage", "activeTab", "scripting"],
+  permissions: ["storage", "activeTab"],
   host_permissions: ["https://*/*"],
   // Trezor Suite Web returns signing results to the extension through this channel.
   externally_connectable: {
