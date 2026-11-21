@@ -26,18 +26,10 @@ export function QrSignFlow({
   const [signature, setSignature] = useState("");
   const [error, setError] = useState<string>();
 
-  const showQr = request.signer !== "address-qr";
   const gas = evmGasInfo(request);
   const gasBlocked = gasBlockedReason(gas);
 
   const qr = useMemo(() => {
-    if (!showQr) {
-      return {
-        parts: [] as string[],
-        error: undefined as string | undefined,
-        fallback: request.transport ?? "",
-      };
-    }
     try {
       const { parts, fallback } = buildRequestParts(request, wallet);
       return { parts, error: undefined as string | undefined, fallback };
@@ -45,10 +37,10 @@ export function QrSignFlow({
       return {
         parts: [] as string[],
         error: e instanceof Error ? e.message : String(e),
-        fallback: "",
+        fallback: request.transport ?? "",
       };
     }
-  }, [request, wallet, showQr]);
+  }, [request, wallet]);
 
   const scannerCaption = SIGNER_MODE_SCANNER_HINT[request.signer] ?? undefined;
 
@@ -131,30 +123,26 @@ export function QrSignFlow({
       </section>
 
       <div className="relative">
-        {showQr ? (
-          <Tabs
-            value={dataTab}
-            onValueChange={(value) => {
-              setDataTab(value);
-              if (value === "qr") setError(undefined);
-            }}
-          >
-            <TabsList className="w-full">
-              <TabsTrigger value="data">Sign data</TabsTrigger>
-              <TabsTrigger value="qr">QR code</TabsTrigger>
-            </TabsList>
-            <TabsContent value="data">{dataContent}</TabsContent>
-            <TabsContent value="qr">
-              {qr.error ? (
-                <p className="text-center text-xs text-destructive">{qr.error}</p>
-              ) : (
-                <QrCodePanel parts={qr.parts} caption={scannerCaption} />
-              )}
-            </TabsContent>
-          </Tabs>
-        ) : (
-          dataContent
-        )}
+        <Tabs
+          value={dataTab}
+          onValueChange={(value) => {
+            setDataTab(value);
+            if (value === "qr") setError(undefined);
+          }}
+        >
+          <TabsList className="w-full">
+            <TabsTrigger value="data">Sign data</TabsTrigger>
+            <TabsTrigger value="qr">QR code</TabsTrigger>
+          </TabsList>
+          <TabsContent value="data">{dataContent}</TabsContent>
+          <TabsContent value="qr">
+            {qr.error ? (
+              <p className="text-center text-xs text-destructive">{qr.error}</p>
+            ) : (
+              <QrCodePanel parts={qr.parts} caption={scannerCaption} />
+            )}
+          </TabsContent>
+        </Tabs>
 
         {gasBlocked ? (
           <div
