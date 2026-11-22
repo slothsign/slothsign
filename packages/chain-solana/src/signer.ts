@@ -93,15 +93,22 @@ function signLegacyTransaction(
   return tx;
 }
 
-/** Serialize a legacy transaction, refusing a missing or invalid signature. */
-function serializeVerified(tx: Transaction): Promise<Uint8Array> {
+/**
+ * Serialize a legacy transaction, refusing a missing or invalid signature for
+ * `signer` and an invalid signature from anyone else. Other signers' slots may
+ * stay empty: a dApp can add its own signature after the wallet signs.
+ */
+function serializeVerified(tx: Transaction, signer: PublicKey): Promise<Uint8Array> {
   const message = tx.serializeMessage();
   for (const { publicKey, signature } of tx.signatures) {
-    if (!signature || !ed25519.verify(signature, message, publicKey.toBytes())) {
-      throw new Error(`Signature verification failed for ${publicKey.toBase58()}`);
+    if (!signature) {
+      if (!publicKey.equals(signer)) continue;
+    } else if (ed25519.verify(signature, message, publicKey.toBytes())) {
+      continue;
     }
+    throw new Error(`Signature verification failed for ${publicKey.toBase58()}`);
   }
-  return tx.serialize({ verifySignatures: false });
+  return tx.serialize({ requireAllSignatures: false, verifySignatures: false });
 }
 
 /**
@@ -116,7 +123,10 @@ export async function signTransaction(
   if (isVersionedTransaction(serializedTransaction)) {
     return signVersionedTransaction(keypair, serializedTransaction);
   }
-  return serializeVerified(signLegacyTransaction(keypair, serializedTransaction));
+  return serializeVerified(
+    signLegacyTransaction(keypair, serializedTransaction),
+    keypair.publicKey,
+  );
 }
 
 /**
@@ -182,9 +192,10 @@ export async function signTransactionWithDetachedSignature(
     tx.addSignature(new PublicKey(publicKey), signature);
     return tx.serialize();
   }
+  const signer = new PublicKey(publicKey);
   const tx = Transaction.from(serializedTransaction);
-  tx.addSignature(new PublicKey(publicKey), signature);
-  return serializeVerified(tx);
+  tx.addSignature(signer, signature);
+  return serializeVerified(tx, signer);
 }
 
 export function signMessageFromPayload(

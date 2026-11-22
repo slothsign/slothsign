@@ -265,4 +265,53 @@ describe("signTransactionWithDetachedSignature", () => {
       ),
     ).rejects.toThrow();
   });
+
+  test("legacy: leaves another signer's slot empty for the dApp to fill", async () => {
+    const kp = keypairFromMnemonic(MNEMONIC);
+    const tx = await coSignedLegacyTx(randomKey());
+    const sig = signTransactionDetached(kp, tx);
+
+    const injected = await signTransactionWithDetachedSignature(tx, sig, kp.publicKey.toBase58());
+    const parsed = Transaction.from(injected);
+    expect(parsed.signatures.length).toBe(2);
+    const ours = parsed.signatures.find((s) => s.publicKey.equals(kp.publicKey));
+    expect(Buffer.from(ours?.signature ?? []).toString("hex")).toBe(
+      Buffer.from(sig).toString("hex"),
+    );
+  });
+
+  test("legacy: rejects a signature that does not match the message", async () => {
+    const kp = keypairFromMnemonic(MNEMONIC);
+    await expect(
+      signTransactionWithDetachedSignature(
+        await legacyTx(),
+        new Uint8Array(64).fill(1),
+        kp.publicKey.toBase58(),
+      ),
+    ).rejects.toThrow("Signature verification failed");
+  });
 });
+
+describe("signTransaction (legacy, co-signed)", () => {
+  test("signs when another signer has not signed yet", async () => {
+    const kp = keypairFromMnemonic(MNEMONIC);
+    const signed = await signTransaction(kp, await coSignedLegacyTx(randomKey()));
+    const parsed = Transaction.from(signed);
+    const ours = parsed.signatures.find((s) => s.publicKey.equals(kp.publicKey));
+    expect(ours?.signature).not.toBeNull();
+    expect(parsed.signatures.some((s) => s.signature === null)).toBe(true);
+  });
+});
+
+/** A legacy transfer that also needs `coSigner` to sign (fee payer is ours). */
+function coSignedLegacyTx(coSigner: PublicKey): Promise<Uint8Array> {
+  const kp = keypairFromMnemonic(MNEMONIC);
+  const tx = new Transaction();
+  tx.add(
+    SystemProgram.transfer({ fromPubkey: kp.publicKey, toPubkey: randomKey(), lamports: 100 }),
+    SystemProgram.transfer({ fromPubkey: coSigner, toPubkey: randomKey(), lamports: 100 }),
+  );
+  tx.recentBlockhash = randomKey().toBase58() as string as Blockhash;
+  tx.feePayer = kp.publicKey;
+  return tx.serialize({ requireAllSignatures: false, verifySignatures: false });
+}
